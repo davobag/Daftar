@@ -1,0 +1,25 @@
+[Unit]
+Description=Daftar - personal journal accounting (ASP.NET Core)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+WorkingDirectory=/opt/daftar
+ExecStart=/usr/bin/dotnet /opt/daftar/Daftar.dll
+# بعد از تغییر پورت از داخل برنامه، برنامه خودش متوقف می‌شود و systemd دوباره بالا می‌آوردش
+Restart=always
+RestartSec=3
+User=daftar
+Group=daftar
+EnvironmentFile=/etc/daftar/daftar.env
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_NOLOGO=1
+# سخت‌گیری امنیتی
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/daftar
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دفتر روزنامه شخصی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap">
+<style>
+html{-webkit-text-size-adjust:100%}
+/* Layout: ledger sheet. Entry form beside the report on wide screens, stacked on phones. */
+:root {
+  --bg: #f3f5f2;
+  --paper: #ffffff;
+  --ink: #1d2a24;
+  --muted: #5f6e66;
+  --rule: #d9e0db;
+  --rule-strong: #b9c5bd;
+  --accent: #1f6b4f;
+  --accent-soft: #e2efe8;
+  --debit: #1f6b4f;
+  --credit: #a1452f;
+  --credit-soft: #f6e6e1;
+  --warn-bg: #fff4d6;
+  --warn-fg: #6b5210;
+  --font: "Vazirmatn", Tahoma, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121815; --paper: #1a221e; --ink: #e4ebe6; --muted: #9aa9a1;
+    --rule: #2c3832; --rule-strong: #3d4c44; --accent: #5fbf98; --accent-soft: #1f3329;
+    --debit: #6cc9a2; --credit: #ec8c74; --credit-soft: #3a2420;
+    --warn-bg: #3a3118; --warn-fg: #f0d68c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121815; --paper: #1a221e; --ink: #e4ebe6; --muted: #9aa9a1;
+  --rule: #2c3832; --rule-strong: #3d4c44; --accent: #5fbf98; --accent-soft: #1f3329;
+  --debit: #6cc9a2; --credit: #ec8c74; --credit-soft: #3a2420;
+  --warn-bg: #3a3118; --warn-fg: #f0d68c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.7;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
+h1 { margin: 0; font-size: 1.6rem; font-weight: 800; text-wrap: balance; }
+.sub { color: var(--muted); font-size: .9rem; }
+.status { font-size: .82rem; color: var(--muted); }
+.status.warn { background: var(--warn-bg); color: var(--warn-fg); padding: 4px 10px; border-radius: 6px; }
+.grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; min-width: 0; }
+.panel h2 { margin: 0 0 12px; font-size: 1.1rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+form { display: flex; flex-direction: column; gap: 12px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); font-weight: 500; }
+input, select, textarea {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--rule-strong);
+  border-radius: 7px; padding: 8px 10px; width: 100%; min-width: 0;
+}
+textarea { resize: vertical; min-height: 60px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.num { direction: ltr; text-align: left; font-variant-numeric: tabular-nums; }
+.hint { font-size: .78rem; color: var(--muted); min-height: 1.2em; }
+.hint b { color: var(--ink); font-weight: 600; }
+.err { color: var(--credit); font-size: .85rem; min-height: 1.2em; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: inherit; cursor: pointer; border-radius: 7px; padding: 8px 16px; border: 1px solid var(--rule-strong); background: var(--paper); color: var(--ink); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 700; }
+button.small { padding: 2px 10px; font-size: .8rem; }
+button.danger { color: var(--credit); border-color: var(--credit); }
+button:disabled { opacity: .5; cursor: default; }
+.filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; margin-bottom: 16px; }
+@media (max-width: 640px) { .filters { grid-template-columns: 1fr 1fr; } .filters label.acc { grid-column: 1 / -1; } }
+.unit { font-size: .78rem; font-weight: 500; color: var(--muted); }
+.table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th, td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { background: var(--accent-soft); font-weight: 700; font-size: .8rem; position: sticky; top: 0; }
+td.amt, th.amt { text-align: left; font-variant-numeric: tabular-nums; }
+td.desc { white-space: normal; min-width: 160px; color: var(--muted); }
+td.dr { color: var(--debit); }
+td.cr { color: var(--credit); }
+tr:last-child td { border-bottom: 0; }
+tfoot td { font-weight: 700; background: var(--accent-soft); border-top: 2px solid var(--rule-strong); }
+.tag { display: inline-block; font-size: .72rem; padding: 0 8px; border-radius: 99px; font-weight: 600; }
+.tag.dr { background: var(--accent-soft); color: var(--debit); }
+.tag.cr { background: var(--credit-soft); color: var(--credit); }
+.tag.zero { background: var(--rule); color: var(--muted); }
+.acct-link { background: none; border: 0; padding: 0; color: var(--ink); font-weight: 600; text-decoration: underline dotted var(--rule-strong); text-underline-offset: 4px; }
+.section-title { font-size: .95rem; font-weight: 700; margin: 18px 0 8px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+.empty strong { display: block; color: var(--ink); font-size: 1rem; margin-bottom: 4px; }
+.confirm { display: inline-flex; gap: 6px; align-items: center; font-size: .8rem; }
+.editing-note { background: var(--warn-bg); color: var(--warn-fg); padding: 6px 10px; border-radius: 6px; font-size: .85rem; }
+@media (prefers-reduced-motion: no-preference) { button { transition: background .15s, opacity .15s; } }
+.settings-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+@media (max-width: 760px) { .settings-grid { grid-template-columns: 1fr 1fr; } }
+.picker { position: relative; }
+.suggest { position: absolute; inset-inline: 0; top: calc(100% + 4px); z-index: 20; margin: 0; padding: 4px; list-style: none;
+  background: var(--paper); border: 1px solid var(--rule-strong); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12); max-height: 280px; overflow-y: auto; }
+.suggest li { display: flex; gap: 10px; align-items: baseline; padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--ink); }
+.suggest li[aria-selected="true"] { background: var(--accent-soft); }
+.suggest .code { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 700; min-width: 3em; }
+.suggest .new { color: var(--accent); }
+#acctHint b { color: var(--accent); }
+.acct-form { display: grid; grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1.4fr) auto auto; gap: 10px; align-items: end; margin-bottom: 8px; }
+@media (max-width: 760px) { .acct-form { grid-template-columns: 1fr 2fr; } .acct-form label:nth-child(3) { grid-column: 1 / -1; } }
+.tree-parent td { font-weight: 700; }
+.path-sep { color: var(--muted); font-weight: 400; }
+.sub-hint { font-size: .78rem; color: var(--muted); margin: 0 0 10px; }
+.code-cell { color: var(--accent); font-weight: 700; }
+.login-wrap { min-height: 80vh; display: grid; place-items: center; }
+.login { width: 100%; max-width: 360px; }
+</style>
+</head>
+<body>
+<div class="login-wrap" id="loginView" hidden dir="rtl" lang="fa">
+  <form class="panel login" id="loginForm" novalidate>
+    <h2>ورود به دفتر روزنامه</h2>
+    <label>نام کاربری <input id="lUser" autocomplete="username" class="num"></label>
+    <label>رمز عبور <input id="lPass" type="password" autocomplete="current-password" class="num"></label>
+    <div class="err" id="loginErr" role="alert"></div>
+    <button type="submit" class="primary">ورود</button>
+  </form>
+</div>
+<div class="wrap" id="appView" dir="rtl" lang="fa" hidden>
+  <header>
+    <div>
+      <h1>دفتر روزنامه شخصی</h1>
+      <div class="sub" id="unitSub">ورود مبالغ به تومان، گزارش به ریال</div>
+    </div>
+    <div class="btns" style="align-items:center"><div class="status" id="status">در حال اتصال…</div><button type="button" class="small" id="accountsBtn" hidden aria-expanded="false" aria-controls="accountsPanel">حساب‌ها</button><button type="button" class="small" id="settingsBtn" hidden aria-expanded="false" aria-controls="settingsPanel">تنظیمات</button><button type="button" class="small" id="logoutBtn" hidden>خروج</button></div>
+  </header>
+
+  <section class="panel" id="accountsPanel" hidden aria-labelledby="accountsTitle">
+    <h2 id="accountsTitle">حساب‌ها و کدها</h2>
+    <form id="accountForm" class="acct-form" novalidate>
+      <label>کد <input id="aCode" class="num" inputmode="numeric" placeholder="خودکار" autocomplete="off"></label>
+      <label>زیرمجموعه‌ی <select id="aParent"></select></label>
+      <label>نام حساب یا شخص <input id="aName" placeholder="مثلاً: خرید کاغذ" autocomplete="off"></label>
+      <button type="submit" class="primary" id="aSave">افزودن حساب</button>
+      <button type="button" id="aCancel" hidden>انصراف</button>
+    </form>
+    <p class="sub-hint">برای هر حساب می‌توانید زیرحساب بسازید؛ مثلاً زیر «باسکول»: هر کارمند، شارژ پیامک، خرید کاغذ، کارتریج. کد زیرحساب خودکار از کد والد ساخته می‌شود (۱۰۱ ← ۱۰۱۰۱). در گزارش، جمع باسکول و سهم هر زیرحساب جدا دیده می‌شود.</p>
+    <div class="err" id="accountErr" role="alert"></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th class="amt">کد</th><th>نام</th><th class="amt">تعداد سند</th><th></th></tr></thead>
+        <tbody id="accountsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="settingsPanel" hidden aria-labelledby="settingsTitle">
+    <h2 id="settingsTitle">تنظیمات</h2>
+    <form id="settingsForm" novalidate>
+      <div class="settings-grid">
+        <label>واحد ورود مبالغ
+          <select id="sIn"><option value="Toman">تومان</option><option value="Rial">ریال</option></select>
+        </label>
+        <label>واحد گزارش
+          <select id="sOut"><option value="Rial">ریال</option><option value="Toman">تومان</option></select>
+        </label>
+        <label>پورت برنامه
+          <input id="sPort" class="num" inputmode="numeric" autocomplete="off">
+        </label>
+        <label>دسترسی
+          <select id="sBind"><option value="0.0.0.0">مستقیم با IP و پورت</option><option value="127.0.0.1">فقط از طریق nginx</option></select>
+        </label>
+      </div>
+      <div class="hint">تغییر واحدها فوراً اعمال می‌شود. تغییر پورت یا دسترسی، برنامه را چند ثانیه‌ای روی تنظیم جدید راه‌اندازی مجدد می‌کند. مبالغ همیشه به ریال ذخیره می‌شوند، پس تغییر واحد روی سندهای قبلی اثری ندارد.</div>
+      <div class="err" id="settingsErr" role="alert"></div>
+      <div class="btns"><button type="submit" class="primary" id="settingsSave">ذخیره تنظیمات</button><button type="button" id="settingsClose">بستن</button></div>
+    </form>
+  </section>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="formTitle">
+      <h2 id="formTitle">ثبت سند جدید</h2>
+      <form id="entryForm" novalidate>
+        <div id="editNote" class="editing-note" hidden>در حال ویرایش سند. <button type="button" class="small" id="cancelEdit">انصراف</button></div>
+        <label>تاریخ (شمسی)
+          <input id="fDate" class="num" placeholder="۱۴۰۵/۰۸/۱۳" inputmode="numeric" autocomplete="off">
+        </label>
+        <label>حساب / شخص
+          <div class="picker">
+            <input id="fAccount" placeholder="کد حساب را بزنید یا نام را بنویسید" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="acctSuggest">
+            <ul id="acctSuggest" class="suggest" role="listbox" hidden></ul>
+          </div>
+          <span class="hint" id="acctHint"></span>
+        </label>
+        <div class="row2">
+          <label><span>بدهکار (<span class="inUnit">تومان</span>)</span>
+            <input id="fDebit" class="num" inputmode="numeric" placeholder="۰" autocomplete="off">
+          </label>
+          <label><span>بستانکار (<span class="inUnit">تومان</span>)</span>
+            <input id="fCredit" class="num" inputmode="numeric" placeholder="۰" autocomplete="off">
+          </label>
+        </div>
+        <div class="hint" id="rialHint"></div>
+        <label>روش پرداخت
+          <select id="fMethod">
+            <option>نقدی</option>
+            <option>کارت به کارت</option>
+            <option>کارتخوان</option>
+            <option>انتقال بانکی (پایا/ساتنا)</option>
+            <option>چک</option>
+            <option>سایر</option>
+          </select>
+        </label>
+        <label>توضیحات
+          <textarea id="fDesc" placeholder="مثلاً: خرید میوه از بازار"></textarea>
+        </label>
+        <div class="err" id="formErr" role="alert"></div>
+        <div class="btns">
+          <button type="submit" class="primary" id="saveBtn">ثبت سند</button>
+        </div>
+      </form>
+      <datalist id="accountList"></datalist>
+    </section>
+
+    <section class="panel" aria-labelledby="reportTitle">
+      <h2 id="reportTitle">گزارش <span class="unit">مبالغ به <span id="outUnit">ریال</span></span></h2>
+      <div class="filters">
+        <label>از تاریخ <input id="rFrom" class="num" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off"></label>
+        <label>تا تاریخ <input id="rTo" class="num" placeholder="۱۴۰۵/۱۲/۲۹" autocomplete="off"></label>
+        <label class="acc">کد یا نام حساب <input id="rAccount" list="accountList" placeholder="همه حساب‌ها" autocomplete="off"></label>
+        <button type="button" id="clearFilters">همه</button>
+      </div>
+      <div class="err" id="filterErr"></div>
+
+      <div class="section-title">مانده حساب‌ها <span class="unit" id="summaryNote"></span></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th class="amt">کد</th><th>حساب</th><th class="amt">مانده از قبل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده</th><th>وضعیت</th></tr></thead>
+          <tbody id="summaryBody"></tbody>
+          <tfoot id="summaryFoot"></tfoot>
+        </table>
+      </div>
+
+      <div class="section-title">دفتر روزنامه <span class="unit" id="journalNote"></span></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>تاریخ</th><th>حساب</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش</th><th>توضیحات</th><th></th></tr></thead>
+          <tbody id="journalBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var COLL = "entries";
+  var LS_KEY = "daftar-entries-fallback";
+  var accounts = [];       // {id, code, name, entryCount}
+  var selectedAccountId = null;
+  var editingAccountId = null;
+  var entries = [];        // {id, date:"1405/08/13", account, debit, credit (toman), method, desc, createdAt}
+  var db = null;
+  var editingId = null;
+  var pendingDelete = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var faDigits = "۰۱۲۳۴۵۶۷۸۹", arDigits = "٠١٢٣٤٥٦٧٨٩";
+
+  function toEn(s) {
+    return String(s || "").replace(/[۰-۹]/g, function (d) { return faDigits.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return arDigits.indexOf(d); });
+  }
+  function toFa(s) { return String(s).replace(/\d/g, function (d) { return faDigits[d]; }); }
+  function parseAmount(s) {
+    var t = toEn(s).replace(/[,،٬\s]/g, "");
+    if (t === "") return 0;
+    if (!/^\d+$/.test(t)) return NaN;
+    return Number(t);
+  }
+  function fmt(n) { return Math.round(n).toLocaleString("fa-IR"); }
+  var cfg = { inputCurrency: "Toman", reportCurrency: "Rial" };
+  var unitName = { Toman: "تومان", Rial: "ریال" };
+  function inFactor() { return cfg.inputCurrency === "Toman" ? 10 : 1; }
+  // rial -> report currency text
+  function fmtOut(rial) {
+    var v = cfg.reportCurrency === "Toman" ? rial / 10 : rial;
+    return v.toLocaleString("fa-IR", { maximumFractionDigits: 1 });
+  }
+  function applyUnits() {
+    var i = unitName[cfg.inputCurrency], o = unitName[cfg.reportCurrency];
+    document.querySelectorAll(".inUnit").forEach(function (el) { el.textContent = i; });
+    $("outUnit").textContent = o;
+    $("unitSub").textContent = "ورود مبالغ به " + i + "، گزارش به " + o;
+    updateHint(); render();
+  }
+
+  // Gregorian -> Jalali
+  function g2j(gy, gm, gd) {
+    var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    var gy2 = gm > 2 ? gy + 1 : gy;
+    var days = 355666 + 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) + gd + g_d_m[gm - 1];
+    var jy = -1595 + 33 * Math.floor(days / 12053); days %= 12053;
+    jy += 4 * Math.floor(days / 1461); days %= 1461;
+    if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+    var jm, jd;
+    if (days < 186) { jm = 1 + Math.floor(days / 31); jd = 1 + (days % 31); }
+    else { jm = 7 + Math.floor((days - 186) / 30); jd = 1 + ((days - 186) % 30); }
+    return [jy, jm, jd];
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function todayJ() { var d = new Date(); var j = g2j(d.getFullYear(), d.getMonth() + 1, d.getDate()); return j[0] + "/" + pad(j[1]) + "/" + pad(j[2]); }
+  // Normalize a typed Jalali date to "YYYY/MM/DD", or null if invalid
+  function normDate(s) {
+    var t = toEn(s).trim().replace(/[-.]/g, "/");
+    var m = t.match(/^(\d{2,4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (!m) return null;
+    var y = +m[1], mo = +m[2], d = +m[3];
+    if (y < 100) y += 1400;
+    if (mo < 1 || mo > 12 || d < 1) return null;
+    var max = mo <= 6 ? 31 : 30;
+    if (d > max) return null;
+    return y + "/" + pad(mo) + "/" + pad(d);
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function normName(s) { return String(s || "").trim().replace(/\s+/g, " ").replace(/ي/g, "ی").replace(/ك/g, "ک"); }
+
+  function sorted() {
+    return entries.slice().sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+  }
+
+  function setStatus(text, warn) { var s = $("status"); s.textContent = text; s.classList.toggle("warn", !!warn); }
+
+  // ---------- server API ----------
+  function api(method, url, data) {
+    return fetch(url, {
+      method: method, credentials: "same-origin",
+      headers: data ? { "Content-Type": "application/json" } : {},
+      body: data ? JSON.stringify(data) : undefined
+    }).then(function (res) {
+      if (res.status === 401) { showLogin(); throw new Error("ابتدا وارد شوید."); }
+      if (res.status === 204) return null;
+      return res.json().catch(function () { return null; }).then(function (body) {
+        if (!res.ok) {
+          var msg = body && (body.error || (body.errors && Object.values(body.errors).flat().join(" ")) || body.detail || body.title);
+          throw new Error(msg || "خطای سرور (" + res.status + ")");
+        }
+        return body;
+      });
+    });
+  }
+  function fromServer(x) {
+    return { id: x.id, date: x.date, accountId: x.accountId, code: x.accountCode, account: x.accountName, debit: x.debit, credit: x.credit,
+      method: x.paymentMethod, desc: x.description || "", createdAt: Date.parse(x.createdAt) || 0 };
+  }
+  function loadEntries() {
+    setStatus("در حال بارگذاری…");
+    return Promise.all([api("GET", "/api/accounts"), api("GET", "/api/entries")]).then(function (r) {
+      accounts = r[0] || [];
+      entries = (r[1] || []).map(fromServer);
+      renderAccounts();
+      setStatus("متصل به سرور");
+      render();
+    }).catch(function (e) { setStatus("بارگذاری نشد: " + e.message, true); });
+  }
+  function saveEntry(data, id) {
+    var payload = { date: data.date, accountId: data.accountId, debit: data.debit, credit: data.credit,
+      paymentMethod: data.method, description: data.desc };
+    return api(id ? "PUT" : "POST", id ? "/api/entries/" + id : "/api/entries", payload).then(function (saved) {
+      var e = fromServer(saved);
+      if (id) entries = entries.map(function (x) { return String(x.id) === String(id) ? e : x; });
+      else entries.push(e);
+      render();
+    });
+  }
+  function deleteEntry(id) {
+    return api("DELETE", "/api/entries/" + id).then(function () {
+      entries = entries.filter(function (e) { return String(e.id) !== String(id); });
+      render();
+    });
+  }
+
+  // ---------- form ----------
+  function updateHint() {
+    var d = parseAmount($("fDebit").value), c = parseAmount($("fCredit").value);
+    var parts = [];
+    var other = cfg.inputCurrency === "Toman" ? "Rial" : "Toman";
+    function conv(v) { var r = v * inFactor(); return (other === "Toman" ? r / 10 : r).toLocaleString("fa-IR", { maximumFractionDigits: 1 }); }
+    if (d > 0) parts.push("بدهکار: <b>" + conv(d) + "</b> " + unitName[other]);
+    if (c > 0) parts.push("بستانکار: <b>" + conv(c) + "</b> " + unitName[other]);
+    $("rialHint").innerHTML = parts.join("، ");
+  }
+  function resetForm() {
+    editingId = null;
+    $("entryForm").reset();
+    $("fDate").value = toFa(todayJ());
+    $("editNote").hidden = true;
+    $("formTitle").textContent = "ثبت سند جدید";
+    $("saveBtn").textContent = "ثبت سند";
+    $("formErr").textContent = "";
+    selectAccount(null); closeSuggest();
+    updateHint();
+  }
+  function startEdit(id) {
+    var e = entries.find(function (x) { return String(x.id) === String(id); });
+    if (!e) return;
+    editingId = id;
+    $("fDate").value = toFa(e.date);
+    selectAccount(accById(e.accountId));
+    $("fDebit").value = e.debit ? toFa(e.debit / inFactor()) : "";
+    $("fCredit").value = e.credit ? toFa(e.credit / inFactor()) : "";
+    $("fMethod").value = e.method;
+    $("fDesc").value = e.desc || "";
+    $("editNote").hidden = false;
+    $("formTitle").textContent = "ویرایش سند";
+    $("saveBtn").textContent = "ذخیره تغییرات";
+    updateHint();
+    $("fAccount").focus();
+    $("entryForm").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  $("fDebit").addEventListener("input", updateHint);
+  $("fCredit").addEventListener("input", updateHint);
+  $("cancelEdit").addEventListener("click", resetForm);
+
+  $("entryForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var err = $("formErr");
+    var date = normDate($("fDate").value);
+    var acctText = normName($("fAccount").value);
+    var debit = parseAmount($("fDebit").value), credit = parseAmount($("fCredit").value);
+    if (!date) { err.textContent = "تاریخ را به شکل ۱۴۰۵/۰۸/۱۳ وارد کنید."; return; }
+    if (!selectedAccountId && !acctText) { err.textContent = "کد یا نام حساب را وارد کنید."; return; }
+    if (!selectedAccountId && /^\d+$/.test(toEn(acctText))) { err.textContent = "حسابی با کد " + toFa(toEn(acctText)) + " وجود ندارد."; return; }
+    if (isNaN(debit) || isNaN(credit)) { err.textContent = "مبلغ را به " + unitName[cfg.inputCurrency] + " و بدون اعشار وارد کنید."; return; }
+    if (debit <= 0 && credit <= 0) { err.textContent = "یکی از مبالغ بدهکار یا بستانکار را وارد کنید."; return; }
+    err.textContent = "";
+    var old = editingId ? entries.find(function (x) { return String(x.id) === String(editingId); }) : null;
+    var data = {
+      date: date, debit: debit * inFactor(), credit: credit * inFactor(),
+      method: $("fMethod").value, desc: $("fDesc").value.trim(),
+      createdAt: old ? old.createdAt : Date.now()
+    };
+    var btn = $("saveBtn"); btn.disabled = true;
+    var keepDate = $("fDate").value, keepMethod = $("fMethod").value, wasEdit = !!editingId;
+    var ensureAccount = selectedAccountId ? Promise.resolve(selectedAccountId)
+      : api("POST", "/api/accounts", { name: acctText }).then(function (a) { accounts.push(a); renderAccounts(); return a.id; });
+    ensureAccount.then(function (accId) { data.accountId = accId; return saveEntry(data, editingId); }).then(function () {
+      resetForm();
+      if (!wasEdit) { $("fDate").value = keepDate; $("fMethod").value = keepMethod; }
+      setStatus(wasEdit ? "سند ویرایش شد." : "سند ثبت شد.");
+      $("fAccount").focus();
+    }).catch(function (e) {
+      err.textContent = "ثبت نشد: " + ((e && e.message) || "اتصال به سرور برقرار نیست.");
+    }).then(function () { btn.disabled = false; });
+  });
+
+  // ---------- account picker (type a code or a name) ----------
+  var suggestItems = [], suggestIdx = -1;
+  function accById(id) { return accounts.find(function (a) { return String(a.id) === String(id); }) || null; }
+  function accByCode(code) { return accounts.find(function (a) { return String(a.code) === String(code); }) || null; }
+  function accByName(name) {
+    return accounts.find(function (a) { return pathOf(a) === name; }) || accounts.find(function (a) { return a.name === name; }) || null;
+  }
+  function pathOf(a) {
+    var p = [a.name], c = a, guard = 0;
+    while (c && c.parentId && guard++ < 20) { c = accById(c.parentId); if (c) p.unshift(c.name); }
+    return p.join(" › ");
+  }
+  function childrenOf(id) {
+    return accounts.filter(function (a) { return String(a.parentId || "") === String(id || ""); })
+      .sort(function (a, b) { return a.code - b.code; });
+  }
+  // all accounts in tree order: [{a, depth}]
+  function treeOrder() {
+    var out = [];
+    (function walk(pid, depth) {
+      childrenOf(pid).forEach(function (a) { if (depth < 20) { out.push({ a: a, depth: depth }); walk(a.id, depth + 1); } });
+    })(null, 0);
+    return out;
+  }
+  function subtreeIds(id) {
+    var set = {}; (function walk(x) { set[x] = 1; childrenOf(x).forEach(function (c) { if (!set[c.id]) walk(c.id); }); })(id);
+    return set;
+  }
+  function selectAccount(a) {
+    selectedAccountId = a ? a.id : null;
+    if (a) $("fAccount").value = pathOf(a);
+    else if (a === null && !editingId) $("fAccount").value = "";
+    $("acctHint").innerHTML = a ? "کد <b>" + toFa(a.code) + "</b>: " + esc(pathOf(a)) : "";
+  }
+  function closeSuggest() { $("acctSuggest").hidden = true; $("fAccount").setAttribute("aria-expanded", "false"); suggestIdx = -1; }
+  function drawSuggest() {
+    var ul = $("acctSuggest");
+    if (!suggestItems.length) { closeSuggest(); return; }
+    ul.innerHTML = suggestItems.map(function (it, i) {
+      var sel = i === suggestIdx ? ' aria-selected="true"' : ' aria-selected="false"';
+      if (it.isNew) return '<li role="option" data-i="' + i + '"' + sel + '><span class="code new">+</span><span class="new">حساب جدید: «' + esc(it.name) + '» (کد خودکار)</span></li>';
+      return '<li role="option" data-i="' + i + '"' + sel + '><span class="code">' + toFa(it.code) + '</span><span>' + esc(pathOf(it)) + '</span></li>';
+    }).join("");
+    ul.hidden = false; $("fAccount").setAttribute("aria-expanded", "true");
+  }
+  function onAccountInput() {
+    var raw = normName($("fAccount").value), q = toEn(raw);
+    selectedAccountId = null; $("acctHint").innerHTML = "";
+    if (!q) { suggestItems = treeOrder().map(function (x) { return x.a; }).slice(0, 10); suggestIdx = -1; drawSuggest(); return; }
+    var exact = /^\d+$/.test(q) ? accByCode(+q) : accByName(raw);
+    if (exact) { selectedAccountId = exact.id; $("acctHint").innerHTML = "کد <b>" + toFa(exact.code) + "</b>: " + esc(pathOf(exact)); }
+    else if (/^\d+$/.test(q)) $("acctHint").textContent = "حسابی با این کد نیست.";
+    else $("acctHint").textContent = "اگر از لیست انتخاب نکنید، حساب جدید با کد خودکار ساخته می‌شود.";
+    suggestItems = accounts.filter(function (a) { return String(a.code).indexOf(q) === 0 || pathOf(a).indexOf(raw) !== -1; })
+      .sort(function (a, b) { return (exact && a.id === exact.id ? -1 : 0) - (exact && b.id === exact.id ? -1 : 0) || a.code - b.code; })
+      .slice(0, 10);
+    if (!exact && !/^\d+$/.test(q)) suggestItems.push({ isNew: true, name: raw });
+    suggestIdx = suggestItems.length ? 0 : -1;
+    drawSuggest();
+  }
+  function pickSuggest(i) {
+    var it = suggestItems[i]; if (!it) return;
+    if (it.isNew) { selectedAccountId = null; $("fAccount").value = it.name; $("acctHint").textContent = "حساب جدید با ثبت سند ساخته می‌شود."; }
+    else selectAccount(it);
+    closeSuggest();
+    $("fDebit").focus();
+  }
+  $("fAccount").addEventListener("input", onAccountInput);
+  $("fAccount").addEventListener("focus", function () { if (!selectedAccountId) onAccountInput(); });
+  $("fAccount").addEventListener("blur", function () {
+    setTimeout(function () { if (document.activeElement !== $("fAccount")) closeSuggest(); }, 150);
+  });
+  $("fAccount").addEventListener("keydown", function (ev) {
+    if ($("acctSuggest").hidden) {
+      if (ev.key === "Enter") { ev.preventDefault(); $("fDebit").focus(); }
+      return;
+    }
+    if (ev.key === "ArrowDown") { ev.preventDefault(); suggestIdx = Math.min(suggestIdx + 1, suggestItems.length - 1); drawSuggest(); }
+    else if (ev.key === "ArrowUp") { ev.preventDefault(); suggestIdx = Math.max(suggestIdx - 1, 0); drawSuggest(); }
+    else if (ev.key === "Enter" && suggestIdx >= 0) { ev.preventDefault(); pickSuggest(suggestIdx); }
+    else if (ev.key === "Escape") closeSuggest();
+  });
+  $("acctSuggest").addEventListener("mousedown", function (ev) {
+    var li = ev.target.closest("li"); if (!li) return;
+    ev.preventDefault(); pickSuggest(+li.dataset.i);
+  });
+
+  // ---------- accounts panel ----------
+  function renderAccounts() {
+    var counts = {};
+    entries.forEach(function (e) { counts[e.accountId] = (counts[e.accountId] || 0) + 1; });
+    accounts.forEach(function (a) { a.entryCount = counts[a.id] || 0; });
+    var tree = treeOrder();
+    $("accountList").innerHTML = tree.map(function (x) { return '<option value="' + esc(pathOf(x.a)) + '" label="' + toFa(x.a.code) + '">'; }).join("");
+    $("accountsBody").innerHTML = tree.length ? tree.map(function (x) {
+      var a = x.a, hasKids = childrenOf(a.id).length > 0;
+      return '<tr' + (hasKids ? ' class="tree-parent"' : '') + '><td class="amt code-cell">' + toFa(a.code) + '</td><td style="padding-inline-start:' + (0.6 + x.depth * 1.6) + 'em">' + (x.depth ? '<span class="path-sep">└ </span>' : '') + esc(a.name) + '</td><td class="amt">' + fmt(a.entryCount || 0) + "</td>" +
+        '<td><button type="button" class="small" data-acc-sub="' + a.id + '">+ زیرحساب</button> <button type="button" class="small" data-acc-edit="' + a.id + '">ویرایش</button> ' +
+        (a.entryCount || hasKids ? "" : '<button type="button" class="small" data-acc-del="' + a.id + '">حذف</button>') + "</td></tr>";
+    }).join("") : '<tr><td colspan="4" class="empty">هنوز حسابی تعریف نشده. اینجا یا موقع ثبت سند، حساب بسازید.</td></tr>';
+    fillParentSelect();
+  }
+  function fillParentSelect() {
+    var sel = $("aParent"), cur = sel.value;
+    var blocked = editingAccountId ? subtreeIds(editingAccountId) : {};
+    sel.innerHTML = '<option value="">— حساب اصلی —</option>' + treeOrder().filter(function (x) { return !blocked[x.a.id]; }).map(function (x) {
+      return '<option value="' + x.a.id + '">' + "\u00a0\u00a0".repeat(x.depth) + toFa(x.a.code) + " - " + esc(x.a.name) + "</option>";
+    }).join("");
+    sel.value = cur; if (sel.value !== cur) sel.value = "";
+  }
+  function resetAccountForm() {
+    editingAccountId = null; $("aCode").value = ""; $("aName").value = ""; fillParentSelect(); $("aParent").value = "";
+    $("aSave").textContent = "افزودن حساب"; $("aCancel").hidden = true; $("accountErr").textContent = "";
+  }
+  $("accountsBtn").addEventListener("click", function () {
+    var open = $("accountsPanel").hidden;
+    $("accountsPanel").hidden = !open; $("accountsBtn").setAttribute("aria-expanded", String(open));
+    if (open) { resetAccountForm(); $("aName").focus(); }
+  });
+  $("aCancel").addEventListener("click", resetAccountForm);
+  $("accountForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var codeTxt = toEn($("aCode").value).trim(), name = normName($("aName").value), err = $("accountErr");
+    if (codeTxt && !/^\d+$/.test(codeTxt)) { err.textContent = "کد باید عدد باشد."; return; }
+    if (!name) { err.textContent = "نام حساب را بنویسید."; return; }
+    var body = { code: codeTxt ? +codeTxt : null, name: name, parentId: $("aParent").value ? +$("aParent").value : null };
+    var req = editingAccountId ? api("PUT", "/api/accounts/" + editingAccountId, body) : api("POST", "/api/accounts", body);
+    var keepParent = editingAccountId ? "" : $("aParent").value;
+    req.then(function () { resetAccountForm(); $("aParent").value = keepParent; $("aName").focus(); return loadEntries(); })
+      .catch(function (e) { err.textContent = e.message; });
+  });
+
+  // ---------- report ----------
+  ["rFrom", "rTo", "rAccount"].forEach(function (id) { $(id).addEventListener("input", render); });
+  $("clearFilters").addEventListener("click", function () { $("rFrom").value = ""; $("rTo").value = ""; $("rAccount").value = ""; render(); });
+
+  function filterAccount(code) { $("rAccount").value = toFa(code); render(); $("reportTitle").scrollIntoView({ behavior: "smooth", block: "start" }); }
+
+  function statusTag(bal) {
+    if (Math.round(bal) === 0) return '<span class="tag zero">بی‌حساب</span>';
+    return bal > 0 ? '<span class="tag dr">بدهکار</span>' : '<span class="tag cr">بستانکار</span>';
+  }
+
+  function render() {
+    renderAccounts();
+    // account list
+
+    var fromRaw = $("rFrom").value.trim(), toRaw = $("rTo").value.trim();
+    var from = fromRaw ? normDate(fromRaw) : null, to = toRaw ? normDate(toRaw) : null;
+    var fErr = [];
+    if (fromRaw && !from) fErr.push("«از تاریخ» درست نیست");
+    if (toRaw && !to) fErr.push("«تا تاریخ» درست نیست");
+    $("filterErr").textContent = fErr.length ? fErr.join("، ") + " (نمونه: ۱۴۰۵/۰۸/۰۱)." : "";
+    var accQ = normName($("rAccount").value), accQEn = toEn(accQ);
+    // accounts in the filter: the matched ones plus all their sub-accounts
+    var allowed = null;
+    if (accQ) {
+      allowed = {};
+      accounts.filter(function (a) { return /^\d+$/.test(accQEn) ? String(a.code) === accQEn : pathOf(a).indexOf(accQ) !== -1; })
+        .forEach(function (a) { Object.assign(allowed, subtreeIds(a.id)); });
+    }
+
+    var all = sorted();
+    var running = {};   // running balance per account across all history
+    var own = {};       // per account: opening, debit, credit, n
+    var rows = [];
+    all.forEach(function (e) {
+      var acc = e.accountId;
+      if (allowed && !allowed[acc]) return;
+      running[acc] = (running[acc] || 0) + (e.debit || 0) - (e.credit || 0);
+      if (to && e.date > to) return;
+      var s = own[acc] || (own[acc] = { opening: 0, debit: 0, credit: 0, n: 0 });
+      s.n++;
+      if (from && e.date < from) { s.opening += (e.debit || 0) - (e.credit || 0); return; }
+      s.debit += e.debit || 0; s.credit += e.credit || 0;
+      rows.push({ e: e, bal: running[acc] });
+    });
+
+    // summary table: tree, parents show the total of their sub-accounts
+    function rollup(id) {
+      var t = Object.assign({ opening: 0, debit: 0, credit: 0, n: 0 }, own[id] || {});
+      childrenOf(id).forEach(function (c) {
+        if (allowed && !allowed[c.id]) return;
+        var ct = rollup(c.id); t.opening += ct.opening; t.debit += ct.debit; t.credit += ct.credit; t.n += ct.n;
+      });
+      return t;
+    }
+    var tot = { opening: 0, debit: 0, credit: 0 }, shown = 0, roots = 0, sbParts = [];
+    treeOrder().forEach(function (x) {
+      var a = x.a;
+      if (allowed && !allowed[a.id]) return;
+      var t = rollup(a.id);
+      if (!t.n) return;
+      var isRoot = !a.parentId || (allowed && !allowed[a.parentId]);
+      var depth = x.depth;
+      if (allowed) { var d = 0, c = a; while (c.parentId && allowed[c.parentId]) { d++; c = accById(c.parentId); } depth = d; }
+      if (isRoot) { roots++; tot.opening += t.opening; tot.debit += t.debit; tot.credit += t.credit; }
+      shown++;
+      var hasKids = childrenOf(a.id).some(function (c) { return (!allowed || allowed[c.id]) && rollup(c.id).n; });
+      var end = t.opening + t.debit - t.credit;
+      sbParts.push('<tr' + (hasKids ? ' class="tree-parent"' : '') + '><td class="amt code-cell">' + toFa(a.code) + '</td><td style="padding-inline-start:' + (0.6 + depth * 1.6) + 'em">' +
+        (depth ? '<span class="path-sep">└ </span>' : '') + '<button type="button" class="acct-link" data-acc="' + esc(a.code) + '">' + esc(a.name) + '</button>' + (hasKids ? ' <span class="unit">(جمع)</span>' : '') + "</td>" +
+        '<td class="amt">' + fmtOut(Math.abs(t.opening)) + '</td>' +
+        '<td class="amt dr">' + fmtOut(t.debit) + '</td>' +
+        '<td class="amt cr">' + fmtOut(t.credit) + '</td>' +
+        '<td class="amt">' + fmtOut(Math.abs(end)) + '</td>' +
+        "<td>" + statusTag(end) + "</td></tr>");
+    });
+    var sb = sbParts.join(""), accs = { length: shown };
+    var hasData = entries.length > 0;
+    $("summaryBody").innerHTML = sb || '<tr><td colspan="7" class="empty">' +
+      (hasData ? "<strong>سندی با این فیلتر پیدا نشد</strong>تاریخ یا نام حساب را تغییر دهید." :
+        "<strong>هنوز سندی ثبت نشده</strong>از فرم «ثبت سند جدید» اولین خرج یا دریافت را وارد کنید. مانده هر حساب اینجا حساب می‌شود.") + "</td></tr>";
+    var totEnd = tot.opening + tot.debit - tot.credit;
+    $("summaryFoot").innerHTML = roots > 1 ? "<tr><td></td><td>جمع کل</td><td class=\"amt\">" + fmtOut(Math.abs(tot.opening)) + '</td><td class="amt">' + fmtOut(tot.debit) +
+      '</td><td class="amt">' + fmtOut(tot.credit) + '</td><td class="amt">' + fmtOut(Math.abs(totEnd)) + "</td><td>" + statusTag(totEnd) + "</td></tr>" : "";
+
+    var period = (from ? "از " + toFa(from) + " " : "") + (to ? "تا " + toFa(to) : "");
+    $("summaryNote").textContent = period ? "(" + period.trim() + ")" : "(تا امروز)";
+    $("journalNote").textContent = "(" + fmt(rows.length) + " سند" + (accQ ? "، حساب: " + toFa(accQ) : "") + ")";
+
+    // journal (newest first)
+    var jb = rows.slice().reverse().map(function (r) {
+      var e = r.e;
+      var actions = String(pendingDelete) === String(e.id)
+        ? '<span class="confirm">حذف شود؟ <button type="button" class="small danger" data-del-yes="' + esc(e.id) + '">بله</button><button type="button" class="small" data-del-no="1">نه</button></span>'
+        : '<button type="button" class="small" data-edit="' + esc(e.id) + '">ویرایش</button> <button type="button" class="small" data-del="' + esc(e.id) + '">حذف</button>';
+      return "<tr><td class=\"amt\">" + toFa(e.date) + "</td>" +
+        "<td><span class=\"code-cell\">" + toFa(e.code) + "</span> <button type=\"button\" class=\"acct-link\" data-acc=\"" + esc(e.code) + "\">" + esc(accById(e.accountId) ? pathOf(accById(e.accountId)) : e.account) + "</button></td>" +
+        '<td class="amt dr">' + (e.debit ? fmtOut(e.debit) : "") + "</td>" +
+        '<td class="amt cr">' + (e.credit ? fmtOut(e.credit) : "") + "</td>" +
+        '<td class="amt">' + fmtOut(Math.abs(r.bal)) + " " + statusTag(r.bal) + "</td>" +
+        "<td>" + esc(e.method) + "</td>" +
+        '<td class="desc">' + esc(e.desc) + "</td>" +
+        "<td>" + actions + "</td></tr>";
+    }).join("");
+    $("journalBody").innerHTML = jb || '<tr><td colspan="8" class="empty">' + (hasData ? "سندی در این بازه نیست." : "سندهای ثبت‌شده اینجا به ترتیب تاریخ می‌آیند، با مانده هر حساب بعد از هر سند.") + "</td></tr>";
+  }
+
+  document.addEventListener("click", function (ev) {
+    var t = ev.target.closest("button"); if (!t) return;
+    if (t.dataset.accEdit) {
+      var a = accById(t.dataset.accEdit); if (!a) return;
+      editingAccountId = a.id; $("aCode").value = toFa(a.code); $("aName").value = a.name;
+      fillParentSelect(); $("aParent").value = a.parentId ? String(a.parentId) : "";
+      $("aSave").textContent = "ذخیره حساب"; $("aCancel").hidden = false; $("aName").focus();
+    }
+    else if (t.dataset.accSub) {
+      resetAccountForm(); $("aParent").value = t.dataset.accSub; $("aName").focus();
+      $("accountForm").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    else if (t.dataset.accDel) {
+      api("DELETE", "/api/accounts/" + t.dataset.accDel).then(loadEntries).catch(function (e) { $("accountErr").textContent = e.message; });
+    }
+    else if (t.dataset.acc) filterAccount(t.dataset.acc);
+    else if (t.dataset.edit) startEdit(t.dataset.edit);
+    else if (t.dataset.del) { pendingDelete = t.dataset.del; render(); }
+    else if (t.dataset.delNo) { pendingDelete = null; render(); }
+    else if (t.dataset.delYes) {
+      var id = t.dataset.delYes; pendingDelete = null;
+      deleteEntry(id).then(function () { setStatus("سند حذف شد."); if (String(editingId) === String(id)) resetForm(); })
+        .catch(function (e) { setStatus("حذف نشد: " + e.message, true); render(); });
+    }
+  });
+
+  // ---------- boot ----------
+  resetForm();
+  render();
+
+  // ---------- settings ----------
+  var runningPort = null;
+  function loadSettings() {
+    return api("GET", "/api/settings").then(function (r) {
+      cfg = r.settings; runningPort = r.runningPort;
+      $("sIn").value = cfg.inputCurrency; $("sOut").value = cfg.reportCurrency;
+      $("sPort").value = toFa(cfg.port); $("sBind").value = cfg.bindAddress;
+      applyUnits();
+    }).catch(function () {});
+  }
+  function toggleSettings(open) {
+    $("settingsPanel").hidden = !open;
+    $("settingsBtn").setAttribute("aria-expanded", String(open));
+    if (open) { $("settingsErr").textContent = ""; loadSettings(); }
+  }
+  $("settingsBtn").addEventListener("click", function () { toggleSettings($("settingsPanel").hidden); });
+  $("settingsClose").addEventListener("click", function () { toggleSettings(false); });
+  $("settingsForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var err = $("settingsErr"); err.textContent = "";
+    var port = parseInt(toEn($("sPort").value), 10);
+    if (!(port >= 1024 && port <= 65535)) { err.textContent = "پورت باید عددی بین ۱۰۲۴ و ۶۵۵۳۵ باشد."; return; }
+    var body = { port: port, bindAddress: $("sBind").value, inputCurrency: $("sIn").value, reportCurrency: $("sOut").value };
+    $("settingsSave").disabled = true;
+    api("PUT", "/api/settings", body).then(function (r) {
+      cfg = r.settings; applyUnits();
+      if (r.restarting) {
+        var direct = location.port && String(location.port) === String(runningPort);
+        var url = location.protocol + "//" + location.hostname + ":" + port + "/";
+        if (direct && body.bindAddress === "0.0.0.0") {
+          setStatus("در حال راه‌اندازی روی پورت " + toFa(port) + "…", true);
+          setTimeout(function () { location.href = url; }, 5000);
+        } else {
+          setStatus("ذخیره شد. برنامه روی پورت " + toFa(port) + " راه‌اندازی مجدد می‌شود؛ اگر پشت nginx است، پورت را در تنظیم nginx هم عوض کنید.", true);
+        }
+      } else { setStatus("تنظیمات ذخیره شد."); toggleSettings(false); }
+    }).catch(function (e) { err.textContent = e.message; })
+      .then(function () { $("settingsSave").disabled = false; });
+  });
+
+  function showLogin() {
+    $("appView").hidden = true; $("loginView").hidden = false; $("logoutBtn").hidden = true; $("settingsBtn").hidden = true; $("accountsBtn").hidden = true;
+    setTimeout(function () { $("lUser").focus(); }, 0);
+  }
+  function showApp() {
+    $("loginView").hidden = true; $("appView").hidden = false; $("logoutBtn").hidden = false; $("settingsBtn").hidden = false; $("accountsBtn").hidden = false;
+    loadSettings().then(loadEntries);
+  }
+  $("loginForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var err = $("loginErr"); err.textContent = "";
+    fetch("/api/login", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: $("lUser").value.trim(), password: $("lPass").value }) })
+      .then(function (res) {
+        if (res.ok) { $("lPass").value = ""; showApp(); return; }
+        if (res.status === 429) { err.textContent = "تلاش زیاد بود. یک دقیقه صبر کنید."; return; }
+        return res.json().catch(function () { return {}; }).then(function (b) { err.textContent = b.error || b.detail || "ورود ناموفق بود."; });
+      }).catch(function () { err.textContent = "اتصال به سرور برقرار نیست."; });
+  });
+  $("logoutBtn").addEventListener("click", function () {
+    fetch("/api/logout", { method: "POST", credentials: "same-origin" }).then(function () { entries = []; render(); showLogin(); });
+  });
+  fetch("/api/me", { credentials: "same-origin" }).then(function (r) { if (r.ok) showApp(); else showLogin(); })
+    .catch(function () { showLogin(); $("loginErr").textContent = "اتصال به سرور برقرار نیست."; });
+})();
+</script>
+</body>
+</html>

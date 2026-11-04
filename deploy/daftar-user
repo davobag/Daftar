@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# مدیریت کاربران دفتر روزنامه
+#   sudo daftar-user set-password <username>   ساخت کاربر یا تغییر رمز
+#   sudo daftar-user unlock <username>         باز کردن قفل ورود
+set -euo pipefail
+APP_DIR=/opt/daftar
+if [[ $EUID -ne 0 ]]; then echo "با sudo اجرا کنید: sudo daftar-user $*"; exit 1; fi
+if [[ ! -f $APP_DIR/Daftar.dll ]]; then echo "برنامه در $APP_DIR نصب نیست. اول deploy/install.sh را اجرا کنید."; exit 1; fi
+set -a; . /etc/daftar/daftar.env; set +a
+cd "$APP_DIR"
+exec runuser -u daftar -- env ConnectionStrings__Default="$ConnectionStrings__Default" \
+  dotnet "$APP_DIR/Daftar.dll" "$@"
