@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>حساب‌ها · دفتر روزنامه</title>
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap" id="appView" hidden>
+  <header id="appHeader"></header>
+  <section class="panel" aria-labelledby="accountsTitle">
+    <h2 id="accountsTitle">حساب‌ها و کدها</h2>
+    <form id="accountForm" class="acct-form" novalidate>
+      <label>کد <input id="aCode" class="num" inputmode="numeric" placeholder="خودکار" autocomplete="off"></label>
+      <label>زیرمجموعه‌ی <select id="aParent"></select></label>
+      <label>نام حساب یا شخص <input id="aName" placeholder="مثلاً: خرید کاغذ" autocomplete="off"></label>
+      <button type="submit" class="primary" id="aSave">افزودن حساب</button>
+      <button type="button" id="aCancel" hidden>انصراف</button>
+    </form>
+    <p class="sub-hint">برای هر حساب می‌توانید زیرحساب بسازید؛ مثلاً زیر «باسکول»: هر کارمند، شارژ پیامک، خرید کاغذ، کارتریج. کد زیرحساب خودکار از کد والد ساخته می‌شود (۱۰۲ ← ۱۰۲۰۱). در گزارش، جمع باسکول و سهم هر زیرحساب جدا دیده می‌شود.</p>
+    <div class="err" id="accountErr" role="alert"></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th class="amt">کد</th><th>نام</th><th class="amt">تعداد سند</th><th class="amt">مانده (<span class="outUnit">ریال</span>)</th><th></th></tr></thead>
+        <tbody id="accountsBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<script src="/js/common.js"></script>
+<script src="/js/accounts.js"></script>
+</body>
+</html>

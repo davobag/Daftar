@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>گزارش · دفتر روزنامه</title>
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap" id="appView" hidden>
+  <header id="appHeader"></header>
+  <section class="panel" aria-labelledby="chartTitle">
+    <div class="chart-head">
+      <h2 id="chartTitle" style="margin:0">بدهکار و بستانکار روزانه</h2>
+      <div class="month-nav">
+        <button type="button" class="small" id="prevMonth" aria-label="ماه قبل">→</button>
+        <strong id="monthLabel"></strong>
+        <button type="button" class="small" id="nextMonth" aria-label="ماه بعد">←</button>
+        <button type="button" class="small" id="thisMonth">ماه جاری</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dr-dot"></i>بدهکار: <b id="monthDr">۰</b></span>
+      <span><i class="cr-dot"></i>بستانکار: <b id="monthCr">۰</b></span>
+      <span>مبالغ به <span class="outUnit">ریال</span><span id="chartFilterNote"></span></span>
+    </div>
+    <div class="chart-scroll" id="chartBox"></div>
+    <div class="chart-tip" id="chartTip">روی هر روز بروید یا بزنید تا مبالغش را ببینید.</div>
+  </section>
+
+  <section class="panel" aria-labelledby="reportTitle">
+    <h2 id="reportTitle">گزارش <span class="unit">مبالغ به <span class="outUnit">ریال</span></span></h2>
+    <div class="filters">
+      <label>از تاریخ <input id="rFrom" class="num" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off"></label>
+      <label>تا تاریخ <input id="rTo" class="num" placeholder="۱۴۰۵/۱۲/۲۹" autocomplete="off"></label>
+      <label class="acc">کد یا نام حساب <input id="rAccount" list="accountList" placeholder="همه حساب‌ها" autocomplete="off"></label>
+      <button type="button" id="clearFilters">همه</button>
+    </div>
+    <datalist id="accountList"></datalist>
+    <div class="err" id="filterErr"></div>
+
+    <div class="section-title">مانده حساب‌ها <span class="unit" id="summaryNote"></span></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th class="amt">کد</th><th>حساب</th><th class="amt">مانده از قبل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده</th><th>وضعیت</th></tr></thead>
+        <tbody id="summaryBody"></tbody>
+        <tfoot id="summaryFoot"></tfoot>
+      </table>
+    </div>
+
+    <div class="section-title">دفتر روزنامه <span class="unit" id="journalNote"></span></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>تاریخ</th><th>حساب</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش</th><th>توضیحات</th><th></th></tr></thead>
+        <tbody id="journalBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+<script src="/js/common.js"></script>
+<script src="/js/report.js"></script>
+</body>
+</html>

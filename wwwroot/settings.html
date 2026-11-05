@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تنظیمات · دفتر روزنامه</title>
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap" id="appView" hidden>
+  <header id="appHeader"></header>
+  <section class="panel page-narrow" aria-labelledby="settingsTitle">
+    <h2 id="settingsTitle">تنظیمات</h2>
+    <form id="settingsForm" novalidate>
+      <div class="row2">
+        <label>واحد ورود مبالغ
+          <select id="sIn"><option value="Toman">تومان</option><option value="Rial">ریال</option></select>
+        </label>
+        <label>واحد گزارش
+          <select id="sOut"><option value="Rial">ریال</option><option value="Toman">تومان</option></select>
+        </label>
+        <label>پورت برنامه
+          <input id="sPort" class="num" inputmode="numeric" autocomplete="off">
+        </label>
+        <label>دسترسی
+          <select id="sBind"><option value="0.0.0.0">مستقیم با IP و پورت</option><option value="127.0.0.1">فقط از طریق nginx</option></select>
+        </label>
+      </div>
+      <div class="hint">تغییر واحدها فوراً اعمال می‌شود. تغییر پورت یا دسترسی، برنامه را چند ثانیه‌ای روی تنظیم جدید راه‌اندازی مجدد می‌کند. مبالغ همیشه به ریال ذخیره می‌شوند، پس تغییر واحد روی سندهای قبلی اثری ندارد.</div>
+      <div class="err" id="settingsErr" role="alert"></div>
+      <div class="btns"><button type="submit" class="primary" id="settingsSave">ذخیره تنظیمات</button></div>
+    </form>
+  </section>
+</div>
+<script src="/js/common.js"></script>
+<script src="/js/settings.js"></script>
+</body>
+</html>

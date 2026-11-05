@@ -67,10 +67,19 @@ using (var scope = app.Services.CreateScope())
 
 app.UseForwardedHeaders();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // بعد از هر به‌روزرسانی، مرورگر نسخه‌ی جدید فایل‌ها را بگیرد
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "no-cache"
+});
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// صفحه‌ها: /report، /accounts، /settings (صفحه‌ی ثبت سند همان / است)
+foreach (var page in new[] { "report", "accounts", "settings" })
+    app.MapGet("/" + page, (IWebHostEnvironment env) =>
+        Results.File(Path.Combine(env.WebRootPath, page + ".html"), "text/html; charset=utf-8"));
 
 app.MapAuthEndpoints();
 app.MapAccountEndpoints();
