@@ -10,6 +10,27 @@
 <body>
 <div class="wrap" id="appView" hidden>
   <header id="appHeader"></header>
+  <section class="panel chart-panel" aria-labelledby="chartTitle">
+    <div class="chart-head">
+      <h2 id="chartTitle" style="margin:0">بدهکار و بستانکار روزانه</h2>
+      <div class="month-nav">
+        <button type="button" class="small" id="thisMonth">ماه جاری</button>
+        <div class="month-nav-ltr">
+          <button type="button" class="small" id="prevMonth" aria-label="ماه قبل">←</button>
+          <strong id="monthLabel"></strong>
+          <button type="button" class="small" id="nextMonth" aria-label="ماه بعد">→</button>
+        </div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dr-dot"></i>بدهکار: <b id="monthDr">۰</b></span>
+      <span><i class="cr-dot"></i>بستانکار: <b id="monthCr">۰</b></span>
+      <span>مبالغ به <span class="outUnit">ریال</span></span>
+    </div>
+    <div class="chart-scroll" id="chartBox"></div>
+    <div class="chart-tip" id="chartTip">روی هر روز بروید یا بزنید تا مبالغش را ببینید.</div>
+  </section>
+
   <div class="grid">
     <section class="panel" aria-labelledby="formTitle">
       <h2 id="formTitle">ثبت سند جدید</h2>
@@ -55,18 +76,20 @@
     </section>
 
     <section class="panel" aria-labelledby="recentTitle">
-      <h2 id="recentTitle">سندهای اخیر <a class="unit" href="/report">گزارش کامل ←</a></h2>
+      <h2 id="recentTitle">سندهای امروز <a class="unit" href="/report">گزارش کامل ←</a></h2>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>تاریخ</th><th>حساب</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th>روش</th><th>توضیحات</th><th></th></tr></thead>
+          <thead><tr><th>ساعت ثبت</th><th>تاریخ سند</th><th>حساب</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th>روش</th><th>توضیحات</th><th></th></tr></thead>
           <tbody id="recentBody"></tbody>
         </table>
       </div>
-      <div class="hint">مبالغ به <span class="outUnit">ریال</span>. ۲۰ سند آخر بر اساس زمان ثبت.</div>
+      <p class="empty" id="recentEmpty" hidden>امروز هنوز سندی ثبت نکرده‌اید.</p>
+      <div class="hint">سندهایی که امروز ثبت کرده‌اید، جدیدترین بالا. مبالغ به <span class="outUnit">ریال</span>. سندهای قبلی در <a href="/report">گزارش</a> هستند.</div>
     </section>
   </div>
 </div>
 <script src="/js/common.js"></script>
+<script src="/js/chart.js"></script>
 <script src="/js/entry.js"></script>
 </body>
 </html>

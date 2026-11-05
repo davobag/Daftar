@@ -152,18 +152,27 @@
     }).then(function () { btn.disabled = false; });
   });
 
-  // ---------- recent entries ----------
+  // ---------- entries recorded today (by the time they were saved, not the entry date) ----------
+  function isToday(ms) {
+    var d = new Date(ms), n = new Date();
+    return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+  }
+  function timeOf(ms) { var d = new Date(ms); return toFa(D.pad(d.getHours()) + ":" + D.pad(d.getMinutes())); }
   function renderRecent() {
-    var recent = entries.slice().sort(function (a, b) { return (b.createdAt - a.createdAt) || (b.id - a.id); }).slice(0, 20);
-    $("recentBody").innerHTML = recent.length ? recent.map(function (e) {
+    if (D.drawMonthChart) D.drawMonthChart(entries);
+    var list = entries.filter(function (e) { return isToday(e.createdAt); })
+      .sort(function (a, b) { return (b.createdAt - a.createdAt) || (b.id - a.id); });
+    $("recentBody").innerHTML = list.length ? list.map(function (e) {
       var acc = D.accById(e.accountId);
       var actions = String(pendingDelete) === String(e.id)
         ? '<span class="confirm">حذف شود؟ <button type="button" class="small danger" data-del-yes="' + e.id + '">بله</button><button type="button" class="small" data-del-no="1">نه</button></span>'
         : '<button type="button" class="small" data-edit="' + e.id + '">ویرایش</button> <button type="button" class="small" data-del="' + e.id + '">حذف</button>';
-      return '<tr><td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(e.code) + "</span> " + esc(acc ? D.pathOf(acc) : e.account) + "</td>" +
+      return '<tr><td class="time">' + timeOf(e.createdAt) + '</td><td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(e.code) + "</span> " + esc(acc ? D.pathOf(acc) : e.account) + "</td>" +
         '<td class="amt dr">' + (e.debit ? D.fmtOut(e.debit) : "") + '</td><td class="amt cr">' + (e.credit ? D.fmtOut(e.credit) : "") + "</td>" +
         "<td>" + esc(e.method) + '</td><td class="desc">' + esc(e.desc) + "</td><td>" + actions + "</td></tr>";
-    }).join("") : '<tr><td colspan="7" class="empty"><strong>هنوز سندی ثبت نشده</strong>اولین خرج یا دریافت را از فرم کنار وارد کنید.</td></tr>';
+    }).join("") : "";
+    $("recentBody").closest(".table-scroll").hidden = !list.length;
+    $("recentEmpty").hidden = !!list.length;
   }
   document.addEventListener("click", function (ev) {
     var t = ev.target.closest("button"); if (!t) return;

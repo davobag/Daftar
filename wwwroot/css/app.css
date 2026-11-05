@@ -59,7 +59,7 @@ nav.pages a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
-.chart-scroll { overflow-x: auto; }
+.chart-scroll { overflow-x: auto; direction: ltr; }
 .chart-scroll svg { direction: ltr; display: block; min-width: 640px; width: 100%; height: auto; }
 .chart-tip { font-size: .82rem; color: var(--muted); min-height: 1.5em; margin-top: 4px; }
 .chart-tip b { color: var(--ink); }
@@ -143,3 +143,6 @@ h2 a.unit { color: var(--accent); text-decoration: none; }
 .ch-cr { fill: var(--bar-cr); }
 .ch-hit { fill: transparent; cursor: pointer; }
 .ch-hit:hover, .ch-hit.on { fill: var(--ink); fill-opacity: .06; }
+.month-nav-ltr { direction: ltr; display: flex; align-items: center; gap: 6px; }
+.chart-panel .legend { direction: rtl; }
+td.time { color: var(--muted); font-variant-numeric: tabular-nums; }
