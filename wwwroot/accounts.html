@@ -10,24 +10,34 @@
 <body>
 <div class="wrap" id="appView" hidden>
   <header id="appHeader"></header>
-  <section class="panel" aria-labelledby="accountsTitle">
-    <h2 id="accountsTitle">حساب‌ها و کدها</h2>
-    <form id="accountForm" class="acct-form" novalidate>
-      <label>کد <input id="aCode" class="num" inputmode="numeric" placeholder="خودکار" autocomplete="off"></label>
-      <label>زیرمجموعه‌ی <select id="aParent"></select></label>
-      <label>نام حساب یا شخص <input id="aName" placeholder="مثلاً: خرید کاغذ" autocomplete="off"></label>
-      <button type="submit" class="primary" id="aSave">افزودن حساب</button>
-      <button type="button" id="aCancel" hidden>انصراف</button>
-    </form>
-    <p class="sub-hint">کد زیرحساب خودکار از کد حساب اصلی ساخته می‌شود (۱۰۲ ← ۱۰۲۰۱).</p>
-    <div class="err" id="accountErr" role="alert"></div>
-    <div class="table-scroll">
+  <section class="panel accounts-panel" aria-labelledby="accountsTitle">
+    <div class="acct-head">
+      <h2 id="accountsTitle">حساب‌ها و کدها <span class="unit" id="acctCount"></span></h2>
+      <input id="aSearch" type="search" placeholder="جستجوی نام یا کد…" autocomplete="off" aria-label="جستجوی حساب">
+      <button type="button" class="primary" id="aNew">+ حساب جدید</button>
+    </div>
+    <div class="err" id="listErr" role="alert"></div>
+    <div class="table-scroll accounts-table">
       <table>
-        <thead><tr><th class="amt">کد</th><th>نام</th><th></th></tr></thead>
+        <thead><tr><th class="amt">کد</th><th>نام</th><th class="col-parent">زیرمجموعه‌ی</th><th></th></tr></thead>
         <tbody id="accountsBody"></tbody>
       </table>
     </div>
   </section>
+  <dialog id="accountDialog" class="modal" aria-labelledby="dlgTitle">
+    <form id="accountForm" novalidate>
+      <h3 id="dlgTitle">حساب جدید</h3>
+      <label>نام حساب یا شخص <input id="aName" placeholder="مثلاً: خرید کاغذ" autocomplete="off"></label>
+      <label>زیرمجموعه‌ی <select id="aParent"></select></label>
+      <label>کد <input id="aCode" class="num" inputmode="numeric" placeholder="خودکار" autocomplete="off"></label>
+      <p class="sub-hint">کد را خالی بگذارید تا خودکار ساخته شود. کد زیرحساب از کد حساب اصلی می‌آید (۱۰۲ ← ۱۰۲۰۱).</p>
+      <div class="err" id="accountErr" role="alert"></div>
+      <div class="btns modal-btns">
+        <button type="submit" class="primary" id="aSave">افزودن حساب</button>
+        <button type="button" id="aCancel">انصراف</button>
+      </div>
+    </form>
+  </dialog>
 </div>
 <script src="/js/common.js"></script>
 <script src="/js/accounts.js"></script>
