@@ -1,8 +1,8 @@
-/* Entry page: record a journal entry (account + optional sub-account, each by code or name), see today's entries, monthly chart. */
+/* Entry page: record a journal entry in a modal (account + optional sub-account, each by code or name), see today's entries, monthly chart. */
 (function () {
   "use strict";
   var $ = D.$, toFa = D.toFa, toEn = D.toEn, esc = D.esc;
-  var entries = [], editingId = null, pendingDelete = null;
+  var entries = [], editingId = null, pendingDelete = null, dlg = $("entryDialog");
 
   function load() {
     D.setStatus("در حال بارگذاری…");
@@ -84,7 +84,7 @@
       if (ev.key === "ArrowDown") { ev.preventDefault(); idx = Math.min(idx + 1, items.length - 1); draw(); }
       else if (ev.key === "ArrowUp") { ev.preventDefault(); idx = Math.max(idx - 1, 0); draw(); }
       else if (ev.key === "Enter") { ev.preventDefault(); if (idx >= 0) pick(idx); else { close(); o.next(); } }
-      else if (ev.key === "Escape") close();
+      else if (ev.key === "Escape") { ev.preventDefault(); close(); }
     });
     ul.addEventListener("mousedown", function (ev) { var li = ev.target.closest("li"); if (!li) return; ev.preventDefault(); pick(+li.dataset.i); });
     return P;
@@ -134,6 +134,7 @@
     $("editNote").hidden = true;
     $("formTitle").textContent = "ثبت سند جدید";
     $("saveBtn").textContent = "ثبت سند";
+    $("saveNextBtn").hidden = false;
     $("formErr").textContent = "";
     acctPicker.set(null); subPicker.set(null, true); acctPicker.close(); subPicker.close();
     updateHint();
@@ -153,15 +154,28 @@
     $("editNote").hidden = false;
     $("formTitle").textContent = "ویرایش سند";
     $("saveBtn").textContent = "ذخیره تغییرات";
+    $("saveNextBtn").hidden = true;
     updateHint();
+    if (!dlg.open) dlg.showModal();
     $("fDebit").focus();
-    $("entryForm").scrollIntoView({ behavior: "smooth", block: "start" });
   }
-  $("cancelEdit").addEventListener("click", function () { resetForm(); history.replaceState(null, "", "/"); });
+  function openNew() {
+    if (editingId) resetForm();
+    $("formErr").textContent = "";
+    if (!dlg.open) dlg.showModal();
+    $("fAccount").focus();
+  }
+  $("newEntry").addEventListener("click", openNew);
+  $("cancelEdit").addEventListener("click", function () { dlg.close(); });
+  dlg.addEventListener("mousedown", function (ev) { if (ev.target === dlg) dlg.close(); }); // click on backdrop
+  dlg.addEventListener("close", function () {
+    acctPicker.close(); subPicker.close();
+    if (editingId) { resetForm(); history.replaceState(null, "", "/"); }
+  });
 
   $("entryForm").addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var err = $("formErr");
+    var err = $("formErr"), stayOpen = !!(ev.submitter && ev.submitter.dataset.next);
     var date = D.normDate($("fDate").value);
     var debit = D.parseAmount($("fDebit").value), credit = D.parseAmount($("fCredit").value);
     var acct = acctPicker.selected, acctNew = acctPicker.newName, sub = subPicker.selected, subNew = subPicker.newName;
@@ -174,7 +188,7 @@
     err.textContent = "";
     var payload = { date: date, debit: debit * D.inFactor(), credit: credit * D.inFactor(),
       paymentMethod: $("fMethod").value, description: $("fDesc").value.trim() };
-    var btn = $("saveBtn"); btn.disabled = true;
+    var btn = $("saveBtn"), btn2 = $("saveNextBtn"); btn.disabled = btn2.disabled = true;
     var keepDate = $("fDate").value, keepMethod = $("fMethod").value, wasEdit = editingId;
     function create(name, parentId) {
       return D.api("POST", "/api/accounts", { name: name, parentId: parentId }).then(function (a) { D.accounts.push(a); return a; });
@@ -195,10 +209,10 @@
       if (wasEdit) history.replaceState(null, "", "/");
       else { $("fDate").value = keepDate; $("fMethod").value = keepMethod; }
       D.setStatus(wasEdit ? "سند ویرایش شد." : "سند ثبت شد.");
-      $("fAccount").focus();
+      if (stayOpen && !wasEdit) $("fAccount").focus(); else dlg.close();
     }).catch(function (e) {
       err.textContent = "ثبت نشد: " + ((e && e.message) || "اتصال به سرور برقرار نیست.");
-    }).then(function () { btn.disabled = false; });
+    }).then(function () { btn.disabled = btn2.disabled = false; });
   });
 
   // ---------- entries recorded today (by the time they were saved, not the entry date) ----------
@@ -223,7 +237,7 @@
     $("recentBody").closest(".table-scroll").hidden = !list.length;
     $("recentEmpty").hidden = !!list.length;
   }
-  document.addEventListener("click", function (ev) {
+  $("recentBody").addEventListener("click", function (ev) {
     var t = ev.target.closest("button"); if (!t) return;
     if (t.dataset.edit) startEdit(t.dataset.edit);
     else if (t.dataset.del) { pendingDelete = t.dataset.del; renderRecent(); }
