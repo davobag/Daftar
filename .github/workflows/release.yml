@@ -1,0 +1,37 @@
+# هر بار که روی main چیزی push شود، نسخه‌ی آماده (publish) ساخته و در Release «latest» گذاشته می‌شود.
+# سرور با «sudo daftar-update» همین فایل را دانلود می‌کند و دیگر به .NET SDK نیاز ندارد.
+name: build-release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Publish
+        run: |
+          dotnet publish Daftar.csproj -c Release -o publish --nologo
+          echo "$GITHUB_SHA" > publish/COMMIT
+          tar czf daftar-publish.tar.gz -C publish .
+      - name: Upload to release "latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest daftar-publish.tar.gz \
+            --target "$GITHUB_SHA" --title "آخرین نسخه" \
+            --notes "ساخته‌شده از $GITHUB_SHA. روی سرور: sudo daftar-update"

@@ -12,9 +12,16 @@ PUBLISH_DIR="$SRC_DIR/publish"
 if [[ $EUID -ne 0 ]]; then echo "این اسکریپت را با sudo اجرا کنید."; exit 1; fi
 if [[ ! -f "$PUBLISH_DIR/Daftar.dll" ]]; then echo "پوشه publish پیدا نشد: $PUBLISH_DIR"; exit 1; fi
 
-echo "==> نصب پیش‌نیازها (ASP.NET Core 8 و PostgreSQL)"
-apt-get update -qq </dev/null
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq aspnetcore-runtime-8.0 postgresql rsync >/dev/null </dev/null
+# فقط اگر چیزی نصب نیست سراغ apt می‌رویم (روی به‌روزرسانی‌ها لازم نیست و مخزن‌های خارجی ممکن است در دسترس نباشند)
+NEED=()
+dotnet --list-runtimes 2>/dev/null | grep -q '^Microsoft.AspNetCore.App 8\.' || NEED+=(aspnetcore-runtime-8.0)
+command -v psql >/dev/null || NEED+=(postgresql)
+command -v rsync >/dev/null || NEED+=(rsync)
+if (( ${#NEED[@]} )); then
+  echo "==> نصب پیش‌نیازها: ${NEED[*]}"
+  apt-get update -qq </dev/null || true
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${NEED[@]}" >/dev/null </dev/null
+fi
 
 if ! id daftar &>/dev/null; then
   useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin daftar
