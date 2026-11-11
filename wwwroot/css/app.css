@@ -146,3 +146,7 @@ h2 a.unit { color: var(--accent); text-decoration: none; }
 .month-nav-ltr { direction: ltr; display: flex; align-items: center; gap: 6px; }
 .chart-panel .legend { direction: rtl; }
 td.time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tree-toggle { background: none; border: 0; padding: 0; color: var(--ink); font-weight: 700; display: inline-flex; align-items: baseline; gap: 6px; cursor: pointer; }
+.tree-toggle:hover { color: var(--accent); }
+.chev { display: inline-block; width: 1em; color: var(--accent); font-size: .85em; }
+.chev-space { display: inline-block; width: calc(1em + 6px); }

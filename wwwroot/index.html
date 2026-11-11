@@ -39,12 +39,19 @@
         <label>تاریخ (شمسی)
           <input id="fDate" class="num" placeholder="۱۴۰۵/۰۸/۱۳" inputmode="numeric" autocomplete="off">
         </label>
-        <label>حساب / شخص
+        <label>حساب
           <div class="picker">
-            <input id="fAccount" placeholder="کد حساب را بزنید یا نام را بنویسید" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="acctSuggest">
+            <input id="fAccount" placeholder="کد یا نام حساب" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="acctSuggest">
             <ul id="acctSuggest" class="suggest" role="listbox" hidden></ul>
           </div>
           <span class="hint" id="acctHint"></span>
+        </label>
+        <label>زیرحساب <span class="unit">(اختیاری)</span>
+          <div class="picker">
+            <input id="fSub" placeholder="اول حساب را انتخاب کنید" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="subSuggest" disabled>
+            <ul id="subSuggest" class="suggest" role="listbox" hidden></ul>
+          </div>
+          <span class="hint" id="subHint"></span>
         </label>
         <div class="row2">
           <label><span>بدهکار (<span class="inUnit">تومان</span>)</span>

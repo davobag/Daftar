@@ -1,4 +1,4 @@
-/* Accounts page: account tree with codes, add/edit/delete, add sub-accounts. */
+/* Accounts page: account tree with codes, add/edit/delete, add sub-accounts. No balances here; those live in the report. */
 (function () {
   "use strict";
   var $ = D.$, toFa = D.toFa, toEn = D.toEn, esc = D.esc;
@@ -17,18 +17,14 @@
       var s = own[e.accountId] || (own[e.accountId] = { n: 0, bal: 0 });
       s.n++; s.bal += (e.debit || 0) - (e.credit || 0);
     });
-    function rollBal(id) { return (own[id] ? own[id].bal : 0) + D.childrenOf(id).reduce(function (t, c) { return t + rollBal(c.id); }, 0); }
     var tree = D.treeOrder();
     $("accountsBody").innerHTML = tree.length ? tree.map(function (x) {
-      var a = x.a, kids = D.childrenOf(a.id).length > 0, n = own[a.id] ? own[a.id].n : 0, bal = rollBal(a.id);
+      var a = x.a, kids = D.childrenOf(a.id).length > 0, n = own[a.id] ? own[a.id].n : 0;
       return "<tr" + (kids ? ' class="tree-parent"' : "") + '><td class="amt code-cell">' + toFa(a.code) + "</td>" +
         '<td style="padding-inline-start:' + (0.6 + x.depth * 1.6) + 'em">' + (x.depth ? '<span class="path-sep">└ </span>' : "") + esc(a.name) + "</td>" +
-        '<td class="amt">' + D.fmt(n) + "</td>" +
-        '<td class="amt">' + D.fmtOut(Math.abs(bal)) + " " + D.statusTag(bal) + "</td>" +
         '<td><button type="button" class="small" data-sub="' + a.id + '">+ زیرحساب</button> <button type="button" class="small" data-edit="' + a.id + '">ویرایش</button> ' +
-        '<a class="small" href="/report?account=' + a.code + '">گزارش</a> ' +
         (n || kids ? "" : '<button type="button" class="small" data-del="' + a.id + '">حذف</button>') + "</td></tr>";
-    }).join("") : '<tr><td colspan="5" class="empty"><strong>هنوز حسابی تعریف نشده</strong>اولین حساب را با فرم بالا بسازید، یا موقع ثبت سند نام حساب جدید را بنویسید.</td></tr>';
+    }).join("") : '<tr><td colspan="3" class="empty"><strong>هنوز حسابی تعریف نشده</strong>اولین حساب را با فرم بالا بسازید، یا موقع ثبت سند نام حساب جدید را بنویسید.</td></tr>';
     fillParentSelect();
   }
 

@@ -1,9 +1,8 @@
-/* Entry page: record a journal entry, pick an account by code, see and edit recent entries. */
+/* Entry page: record a journal entry (account + optional sub-account, each by code or name), see today's entries, monthly chart. */
 (function () {
   "use strict";
   var $ = D.$, toFa = D.toFa, toEn = D.toEn, esc = D.esc;
-  var entries = [], editingId = null, pendingDelete = null, selectedAccountId = null;
-  var suggestItems = [], suggestIdx = -1;
+  var entries = [], editingId = null, pendingDelete = null;
 
   function load() {
     D.setStatus("در حال بارگذاری…");
@@ -26,64 +25,106 @@
   $("fDebit").addEventListener("input", updateHint);
   $("fCredit").addEventListener("input", updateHint);
 
-  // ---------- account picker (type a code or a name) ----------
-  function selectAccount(a) {
-    selectedAccountId = a ? a.id : null;
-    $("fAccount").value = a ? D.pathOf(a) : "";
-    $("acctHint").innerHTML = a ? "کد <b>" + toFa(a.code) + "</b>: " + esc(D.pathOf(a)) : "";
-  }
-  function closeSuggest() { $("acctSuggest").hidden = true; $("fAccount").setAttribute("aria-expanded", "false"); suggestIdx = -1; }
-  function drawSuggest() {
-    var ul = $("acctSuggest");
-    if (!suggestItems.length) { closeSuggest(); return; }
-    ul.innerHTML = suggestItems.map(function (it, i) {
-      var sel = ' aria-selected="' + (i === suggestIdx) + '"';
-      if (it.isNew) return '<li role="option" data-i="' + i + '"' + sel + '><span class="code new">+</span><span class="new">حساب جدید: «' + esc(it.name) + '» (کد خودکار)</span></li>';
-      return '<li role="option" data-i="' + i + '"' + sel + '><span class="code">' + toFa(it.code) + "</span><span>" + esc(D.pathOf(it)) + "</span></li>";
-    }).join("");
-    ul.hidden = false; $("fAccount").setAttribute("aria-expanded", "true");
-  }
-  function onAccountInput() {
-    var raw = D.normName($("fAccount").value), q = toEn(raw), isCode = /^\d+$/.test(q);
-    selectedAccountId = null; $("acctHint").innerHTML = "";
-    if (!q) { suggestItems = D.treeOrder().map(function (x) { return x.a; }).slice(0, 10); suggestIdx = -1; drawSuggest(); return; }
-    var exact = isCode ? D.accByCode(+q) : D.accByName(raw);
-    if (exact) { selectedAccountId = exact.id; $("acctHint").innerHTML = "کد <b>" + toFa(exact.code) + "</b>: " + esc(D.pathOf(exact)); }
-    else if (isCode) $("acctHint").textContent = "حسابی با این کد نیست.";
-    else $("acctHint").textContent = "اگر از لیست انتخاب نکنید، حساب جدید با کد خودکار ساخته می‌شود.";
-    suggestItems = D.accounts.filter(function (a) { return String(a.code).indexOf(q) === 0 || D.pathOf(a).indexOf(raw) !== -1; })
-      .sort(function (a, b) { return (exact && b.id === exact.id ? 1 : 0) - (exact && a.id === exact.id ? 1 : 0) || a.code - b.code; })
-      .slice(0, 10);
-    if (!exact && !isCode) suggestItems.push({ isNew: true, name: raw });
-    suggestIdx = suggestItems.length ? 0 : -1;
-    drawSuggest();
-  }
-  function pickSuggest(i) {
-    var it = suggestItems[i]; if (!it) return;
-    if (it.isNew) { selectedAccountId = null; $("fAccount").value = it.name; $("acctHint").textContent = "حساب جدید با ثبت سند ساخته می‌شود."; }
-    else selectAccount(it);
-    closeSuggest();
-    $("fDebit").focus();
-  }
-  $("fAccount").addEventListener("input", onAccountInput);
-  $("fAccount").addEventListener("focus", function () { if (!selectedAccountId) onAccountInput(); });
-  $("fAccount").addEventListener("blur", function () {
-    setTimeout(function () { if (document.activeElement !== $("fAccount")) closeSuggest(); }, 150);
-  });
-  $("fAccount").addEventListener("keydown", function (ev) {
-    if ($("acctSuggest").hidden) {
-      if (ev.key === "Enter") { ev.preventDefault(); $("fDebit").focus(); }
-      return;
+  // ---------- two pickers: main account, then (optional) sub-account; both accept a code or a name ----------
+  function rootOf(a) { var c = a, g = 0; while (c && c.parentId && g++ < 20) c = D.accById(c.parentId); return c; }
+  function relPath(a, root) { var p = D.pathOf(a), r = D.pathOf(root) + " › "; return p.indexOf(r) === 0 ? p.slice(r.length) : p; }
+
+  function makePicker(o) {
+    var input = $(o.input), ul = $(o.list), hint = $(o.hint), items = [], idx = -1;
+    var P = { selected: null, newName: null };
+    function close() { ul.hidden = true; input.setAttribute("aria-expanded", "false"); idx = -1; }
+    function draw() {
+      if (!items.length) { close(); return; }
+      ul.innerHTML = items.map(function (it, i) {
+        var sel = ' aria-selected="' + (i === idx) + '"';
+        if (it.isNew) return '<li role="option" data-i="' + i + '"' + sel + '><span class="code new">+</span><span class="new">' + esc(o.newLabel(it.name)) + "</span></li>";
+        return '<li role="option" data-i="' + i + '"' + sel + '><span class="code">' + toFa(it.code) + "</span><span>" + esc(o.label(it)) + "</span></li>";
+      }).join("");
+      ul.hidden = false; input.setAttribute("aria-expanded", "true");
     }
-    if (ev.key === "ArrowDown") { ev.preventDefault(); suggestIdx = Math.min(suggestIdx + 1, suggestItems.length - 1); drawSuggest(); }
-    else if (ev.key === "ArrowUp") { ev.preventDefault(); suggestIdx = Math.max(suggestIdx - 1, 0); drawSuggest(); }
-    else if (ev.key === "Enter" && suggestIdx >= 0) { ev.preventDefault(); pickSuggest(suggestIdx); }
-    else if (ev.key === "Escape") closeSuggest();
+    P.set = function (a, silent) {
+      P.selected = a || null; P.newName = null;
+      input.value = a ? o.label(a) : "";
+      hint.innerHTML = a ? "کد <b>" + toFa(a.code) + "</b>" : "";
+      if (!silent && o.onChange) o.onChange(P.selected);
+    };
+    P.close = close;
+    function onInput() {
+      var raw = D.normName(input.value), q = toEn(raw), isCode = /^\d+$/.test(q), pool = o.pool();
+      P.selected = null; P.newName = null; hint.innerHTML = "";
+      if (!q) { items = pool.slice(0, 12); idx = -1; draw(); if (o.onChange) o.onChange(null); return; }
+      var exact = null;
+      if (isCode) {
+        exact = pool.find(function (a) { return String(a.code) === q; }) || null;
+        if (!exact && o.onForeignCode) { var f = D.accByCode(+q); if (f && o.onForeignCode(f)) { close(); return; } }
+      } else exact = pool.find(function (a) { return o.label(a) === raw || a.name === raw; }) || null;
+      if (exact) { P.selected = exact; hint.innerHTML = "کد <b>" + toFa(exact.code) + "</b>"; }
+      else if (isCode) hint.textContent = "کدی با این شماره اینجا نیست.";
+      else { P.newName = raw; hint.textContent = o.newHint; }
+      if (o.onChange) o.onChange(P.selected);
+      items = pool.filter(function (a) { return String(a.code).indexOf(q) === 0 || o.label(a).indexOf(raw) !== -1; })
+        .sort(function (a, b) { return (exact && b.id === exact.id ? 1 : 0) - (exact && a.id === exact.id ? 1 : 0) || a.code - b.code; })
+        .slice(0, 12);
+      if (!exact && !isCode) items.push({ isNew: true, name: raw });
+      idx = items.length ? 0 : -1;
+      draw();
+    }
+    function pick(i) {
+      var it = items[i]; if (!it) return;
+      if (it.isNew) { P.selected = null; P.newName = it.name; input.value = it.name; hint.textContent = o.newHint; if (o.onChange) o.onChange(null); }
+      else P.set(it);
+      close();
+      o.next();
+    }
+    input.addEventListener("input", onInput);
+    input.addEventListener("focus", function () { if (!P.selected && !P.newName) onInput(); });
+    input.addEventListener("blur", function () { setTimeout(function () { if (document.activeElement !== input) close(); }, 150); });
+    input.addEventListener("keydown", function (ev) {
+      if (ul.hidden) { if (ev.key === "Enter") { ev.preventDefault(); o.next(); } return; }
+      if (ev.key === "ArrowDown") { ev.preventDefault(); idx = Math.min(idx + 1, items.length - 1); draw(); }
+      else if (ev.key === "ArrowUp") { ev.preventDefault(); idx = Math.max(idx - 1, 0); draw(); }
+      else if (ev.key === "Enter") { ev.preventDefault(); if (idx >= 0) pick(idx); else { close(); o.next(); } }
+      else if (ev.key === "Escape") close();
+    });
+    ul.addEventListener("mousedown", function (ev) { var li = ev.target.closest("li"); if (!li) return; ev.preventDefault(); pick(+li.dataset.i); });
+    return P;
+  }
+
+  function descendants(root) {
+    if (!root) return [];
+    var set = D.subtreeIds(root.id);
+    return D.treeOrder().map(function (x) { return x.a; }).filter(function (a) { return set[a.id] && a.id !== root.id; });
+  }
+
+  var acctPicker = makePicker({
+    input: "fAccount", list: "acctSuggest", hint: "acctHint",
+    pool: function () { return D.childrenOf(null); },
+    label: function (a) { return a.name; },
+    newLabel: function (n) { return "حساب اصلی جدید: «" + n + "» (کد خودکار)"; },
+    newHint: "حساب اصلی جدید با ثبت سند ساخته می‌شود.",
+    // typing a sub-account's full code here (e.g. 10201) fills both boxes
+    onForeignCode: function (a) { var r = rootOf(a); if (!r || r.id === a.id) return false; acctPicker.set(r); subPicker.set(a); return true; },
+    onChange: function (a) { syncSub(a); },
+    next: function () {
+      var a = acctPicker.selected;
+      if (a && descendants(a).length || acctPicker.newName) $("fSub").focus(); else $("fDebit").focus();
+    }
   });
-  $("acctSuggest").addEventListener("mousedown", function (ev) {
-    var li = ev.target.closest("li"); if (!li) return;
-    ev.preventDefault(); pickSuggest(+li.dataset.i);
+  var subPicker = makePicker({
+    input: "fSub", list: "subSuggest", hint: "subHint",
+    pool: function () { return descendants(acctPicker.selected); },
+    label: function (a) { return acctPicker.selected ? relPath(a, acctPicker.selected) : a.name; },
+    newLabel: function (n) { return "زیرحساب جدید: «" + n + "» (کد خودکار)"; },
+    newHint: "زیرحساب جدید با ثبت سند ساخته می‌شود.",
+    next: function () { $("fDebit").focus(); }
   });
+  var lastRootId = null;
+  function syncSub(a) {
+    var id = a ? a.id : null, fSub = $("fSub");
+    fSub.disabled = !a && !acctPicker.newName;
+    fSub.placeholder = fSub.disabled ? "اول حساب را انتخاب کنید" : (a && descendants(a).length ? "کد یا نام زیرحساب (خالی = خود حساب)" : "ندارد؛ برای ساختن نام بنویسید");
+    if (id !== lastRootId) { subPicker.set(null, true); lastRootId = id; }
+  }
 
   // ---------- form ----------
   function resetForm() {
@@ -94,7 +135,7 @@
     $("formTitle").textContent = "ثبت سند جدید";
     $("saveBtn").textContent = "ثبت سند";
     $("formErr").textContent = "";
-    selectAccount(null); closeSuggest();
+    acctPicker.set(null); subPicker.set(null, true); acctPicker.close(); subPicker.close();
     updateHint();
   }
   function startEdit(id) {
@@ -102,7 +143,9 @@
     if (!e) return;
     editingId = e.id;
     $("fDate").value = toFa(e.date);
-    selectAccount(D.accById(e.accountId));
+    var a = D.accById(e.accountId), r = rootOf(a);
+    acctPicker.set(r);
+    if (a && r && a.id !== r.id) subPicker.set(a);
     $("fDebit").value = e.debit ? toFa(e.debit / D.inFactor()) : "";
     $("fCredit").value = e.credit ? toFa(e.credit / D.inFactor()) : "";
     $("fMethod").value = e.method;
@@ -120,11 +163,12 @@
     ev.preventDefault();
     var err = $("formErr");
     var date = D.normDate($("fDate").value);
-    var acctText = D.normName($("fAccount").value);
     var debit = D.parseAmount($("fDebit").value), credit = D.parseAmount($("fCredit").value);
+    var acct = acctPicker.selected, acctNew = acctPicker.newName, sub = subPicker.selected, subNew = subPicker.newName;
+    var subText = D.normName($("fSub").value), acctText = D.normName($("fAccount").value);
     if (!date) { err.textContent = "تاریخ را به شکل ۱۴۰۵/۰۸/۱۳ وارد کنید."; return; }
-    if (!selectedAccountId && !acctText) { err.textContent = "کد یا نام حساب را وارد کنید."; return; }
-    if (!selectedAccountId && /^\d+$/.test(toEn(acctText))) { err.textContent = "حسابی با کد " + toFa(toEn(acctText)) + " وجود ندارد."; return; }
+    if (!acct && !acctNew) { err.textContent = acctText ? "حسابی با کد " + toFa(toEn(acctText)) + " وجود ندارد." : "کد یا نام حساب را وارد کنید."; return; }
+    if (subText && !sub && !subNew) { err.textContent = "زیرحسابی با کد " + toFa(toEn(subText)) + " زیر این حساب نیست."; return; }
     if (isNaN(debit) || isNaN(credit)) { err.textContent = "مبلغ را به " + D.unitName[D.cfg.inputCurrency] + " و بدون اعشار وارد کنید."; return; }
     if (debit <= 0 && credit <= 0) { err.textContent = "یکی از مبالغ بدهکار یا بستانکار را وارد کنید."; return; }
     err.textContent = "";
@@ -132,10 +176,15 @@
       paymentMethod: $("fMethod").value, description: $("fDesc").value.trim() };
     var btn = $("saveBtn"); btn.disabled = true;
     var keepDate = $("fDate").value, keepMethod = $("fMethod").value, wasEdit = editingId;
-    var ensureAccount = selectedAccountId ? Promise.resolve(selectedAccountId)
-      : D.api("POST", "/api/accounts", { name: acctText }).then(function (a) { D.accounts.push(a); return a.id; });
-    ensureAccount.then(function (accId) {
-      payload.accountId = accId;
+    function create(name, parentId) {
+      return D.api("POST", "/api/accounts", { name: name, parentId: parentId }).then(function (a) { D.accounts.push(a); return a; });
+    }
+    (acct ? Promise.resolve(acct) : create(acctNew, null)).then(function (root) {
+      if (sub) return sub;
+      if (subNew) return create(subNew, root.id);
+      return root;
+    }).then(function (target) {
+      payload.accountId = target.id;
       return D.api(wasEdit ? "PUT" : "POST", wasEdit ? "/api/entries/" + wasEdit : "/api/entries", payload);
     }).then(function (saved) {
       var e = D.fromServer(saved);

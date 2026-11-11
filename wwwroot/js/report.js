@@ -2,7 +2,7 @@
 (function () {
   "use strict";
   var $ = D.$, toFa = D.toFa, toEn = D.toEn, esc = D.esc;
-  var entries = [], pendingDelete = null;
+  var entries = [], pendingDelete = null, expanded = {};
 
   function load() {
     D.setStatus("در حال بارگذاری…");
@@ -56,6 +56,7 @@
       return t;
     }
     var tot = { opening: 0, debit: 0, credit: 0 }, roots = 0, parts = [];
+    var shown = {};
     D.treeOrder().forEach(function (x) {
       var a = x.a;
       if (allowed && !allowed[a.id]) return;
@@ -65,10 +66,15 @@
       var depth = 0, c = a;
       while (c.parentId && (!allowed || allowed[c.parentId]) && depth < 20) { depth++; c = D.accById(c.parentId); if (!c) break; }
       if (isRoot) { roots++; tot.opening += t.opening; tot.debit += t.debit; tot.credit += t.credit; }
+      // only main accounts are listed; a click opens the next level, one indent step deeper
+      if (!isRoot && !(shown[a.parentId] && expanded[a.parentId])) return;
+      shown[a.id] = 1;
       var hasKids = D.childrenOf(a.id).some(function (k) { return (!allowed || allowed[k.id]) && rollup(k.id).n; });
       var end = t.opening + t.debit - t.credit;
       parts.push("<tr" + (hasKids ? ' class="tree-parent"' : "") + '><td class="amt code-cell">' + toFa(a.code) + '</td><td style="padding-inline-start:' + (0.6 + depth * 1.6) + 'em">' +
-        (depth ? '<span class="path-sep">└ </span>' : "") + '<button type="button" class="acct-link" data-acc="' + a.code + '">' + esc(a.name) + "</button>" + (hasKids ? ' <span class="unit">(جمع)</span>' : "") + "</td>" +
+        (hasKids
+          ? '<button type="button" class="tree-toggle" data-toggle="' + a.id + '" aria-expanded="' + !!expanded[a.id] + '"><span class="chev">' + (expanded[a.id] ? "▾" : "◂") + "</span>" + esc(a.name) + ' <span class="unit">(جمع)</span></button>'
+          : '<span class="chev-space"></span><button type="button" class="acct-link" data-acc="' + a.code + '">' + esc(a.name) + "</button>") + "</td>" +
         '<td class="amt">' + D.fmtOut(Math.abs(t.opening)) + '</td><td class="amt dr">' + D.fmtOut(t.debit) + '</td><td class="amt cr">' + D.fmtOut(t.credit) + "</td>" +
         '<td class="amt">' + D.fmtOut(Math.abs(end)) + "</td><td>" + D.statusTag(end) + "</td></tr>");
     });
@@ -101,7 +107,8 @@
 
   document.addEventListener("click", function (ev) {
     var t = ev.target.closest("button"); if (!t) return;
-    if (t.dataset.acc) { $("rAccount").value = toFa(t.dataset.acc); render(); $("reportTitle").scrollIntoView({ behavior: "smooth", block: "start" }); }
+    if (t.dataset.toggle) { expanded[t.dataset.toggle] = !expanded[t.dataset.toggle]; render(); }
+    else if (t.dataset.acc) { $("rAccount").value = toFa(t.dataset.acc); render(); $("reportTitle").scrollIntoView({ behavior: "smooth", block: "start" }); }
     else if (t.dataset.del) { pendingDelete = t.dataset.del; render(); }
     else if (t.dataset.delNo) { pendingDelete = null; render(); }
     else if (t.dataset.delYes) {
