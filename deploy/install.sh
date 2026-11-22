@@ -51,6 +51,20 @@ SQL
   chmod 600 "$ENV_FILE"
 fi
 
+if [[ $FIRST_INSTALL -eq 0 ]]; then
+  # پشتیبان پیش از به‌روزرسانی، چون نسخه‌ی جدید ممکن است ساختار دیتابیس را تغییر دهد (migration)
+  BK_DIR=/var/backups/daftar; mkdir -p "$BK_DIR"; chmod 700 "$BK_DIR"
+  BK_FILE="$BK_DIR/pre-update-$(date +%F-%H%M%S).dump"
+  if sudo -u postgres pg_dump -Fc daftar > "$BK_FILE"; then
+    echo "==> پشتیبان دیتابیس: $BK_FILE"
+    ls -1t "$BK_DIR"/pre-update-*.dump 2>/dev/null | tail -n +11 | xargs -r rm -f   # فقط ۱۰ پشتیبان آخر
+  else
+    rm -f "$BK_FILE"
+    echo "!! پشتیبان‌گیری از دیتابیس نشد؛ به‌روزرسانی متوقف شد." >&2
+    exit 1
+  fi
+fi
+
 echo "==> کپی فایل‌های برنامه به $APP_DIR"
 systemctl stop daftar 2>/dev/null || true
 rsync -a --delete --exclude settings.json --exclude keys/ "$PUBLISH_DIR/" "$APP_DIR/"

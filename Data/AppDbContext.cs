@@ -18,6 +18,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Date).HasColumnName("date").HasMaxLength(10).IsRequired();
             e.Property(x => x.AccountId).HasColumnName("account_id");
             e.HasOne(x => x.Account).WithMany(a => a.Entries).HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.CounterAccountId).HasColumnName("counter_account_id");
+            e.HasOne(x => x.CounterAccount).WithMany().HasForeignKey(x => x.CounterAccountId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.Debit).HasColumnName("debit");
             e.Property(x => x.Credit).HasColumnName("credit");
             e.Property(x => x.PaymentMethod).HasColumnName("payment_method").HasMaxLength(50).IsRequired();

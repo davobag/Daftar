@@ -13,7 +13,7 @@
 
   function render() {
     var used = {};
-    entries.forEach(function (e) { used[e.accountId] = 1; });
+    entries.forEach(function (e) { used[e.accountId] = 1; if (e.counterId) used[e.counterId] = 1; });
     var q = D.normName($("aSearch").value), qe = toEn(q);
     var tree = D.treeOrder(), shown = tree;
     if (q) {

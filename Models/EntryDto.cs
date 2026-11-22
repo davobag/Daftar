@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Daftar.Models;
 
 /// <summary>داده‌ای که فرم برای ثبت یا ویرایش سند می‌فرستد. مبالغ به ریال.</summary>
-public record EntryInput(string? Date, int AccountId, long Debit, long Credit, string? PaymentMethod, string? Description)
+public record EntryInput(string? Date, int AccountId, long Debit, long Credit, string? PaymentMethod, string? Description, int? CounterAccountId = null)
 {
     private static readonly Regex DateRx = new(@"^(\d{4})/(\d{2})/(\d{2})$", RegexOptions.Compiled);
 
@@ -23,6 +23,7 @@ public record EntryInput(string? Date, int AccountId, long Debit, long Credit, s
                 errors["date"] = ["تاریخ معتبر نیست."];
         }
         if (AccountId <= 0) errors["accountId"] = ["حساب را انتخاب کنید."];
+        else if (CounterAccountId == AccountId) errors["counterAccountId"] = ["حساب متقابل نمی‌تواند همان حساب سند باشد."];
         if (Debit < 0 || Credit < 0) errors["amount"] = ["مبلغ نمی‌تواند منفی باشد."];
         else if (Debit == 0 && Credit == 0) errors["amount"] = ["یکی از مبالغ بدهکار یا بستانکار را وارد کنید."];
         if (!Methods.Contains(PaymentMethod)) errors["paymentMethod"] = ["روش پرداخت معتبر نیست."];
@@ -34,6 +35,7 @@ public record EntryInput(string? Date, int AccountId, long Debit, long Credit, s
     {
         e.Date = Date!;
         e.AccountId = AccountId;
+        e.CounterAccountId = CounterAccountId is > 0 ? CounterAccountId : null;
         e.Debit = Debit;
         e.Credit = Credit;
         e.PaymentMethod = PaymentMethod!;
@@ -50,4 +52,7 @@ public record AccountInput(int? Code, string? Name, int? ParentId)
 }
 
 public record EntryView(long Id, string Date, int AccountId, int AccountCode, string AccountName,
-    long Debit, long Credit, string PaymentMethod, string? Description, DateTime CreatedAt);
+    long Debit, long Credit, string PaymentMethod, string? Description, DateTime CreatedAt, int? CounterAccountId);
+
+/// <summary>اختصاص یک حساب متقابل به چند سند با هم (null یعنی برداشتن حساب متقابل).</summary>
+public record CounterInput(long[]? Ids, int? CounterAccountId);

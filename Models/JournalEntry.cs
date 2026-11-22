@@ -11,6 +11,11 @@ public class JournalEntry
     public int AccountId { get; set; }
     public Account Account { get; set; } = null!;
 
+    /// <summary>حساب متقابل (طرف دیگر سند در حسابداری دوبل). اختیاری؛ سندهای قدیمی می‌توانند بدون آن بمانند.
+    /// مبلغ بدهکار این سند برای حساب متقابل بستانکار حساب می‌شود و برعکس.</summary>
+    public int? CounterAccountId { get; set; }
+    public Account? CounterAccount { get; set; }
+
     /// <summary>مبلغ بدهکار به ریال.</summary>
     public long Debit { get; set; }
 

@@ -31,9 +31,19 @@
     </div>
 
     <div class="section-title">دفتر روزنامه <span class="unit" id="journalNote"></span></div>
+    <div class="bulk-bar">
+      <label class="check"><input type="checkbox" id="onlyNoCounter"> فقط سندهای بدون حساب متقابل <span class="unit" id="noCounterCount"></span></label>
+      <div class="bulk-actions" id="bulkActions" hidden>
+        <strong id="bulkCount"></strong>
+        <label class="inline">حساب متقابل <select id="bulkCounter"></select></label>
+        <button type="button" class="primary small" id="bulkApply">اختصاص</button>
+        <button type="button" class="small" id="bulkClear">لغو انتخاب</button>
+      </div>
+    </div>
+    <div class="err" id="bulkErr" role="alert"></div>
     <div class="table-scroll">
       <table>
-        <thead><tr><th>تاریخ</th><th>حساب</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش</th><th>توضیحات</th><th></th></tr></thead>
+        <thead><tr><th class="sel"><input type="checkbox" id="selAll" aria-label="انتخاب همه"></th><th>تاریخ</th><th>حساب ⇄ حساب متقابل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش</th><th>توضیحات</th><th></th></tr></thead>
         <tbody id="journalBody"></tbody>
       </table>
     </div>

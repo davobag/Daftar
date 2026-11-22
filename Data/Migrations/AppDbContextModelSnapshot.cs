@@ -119,6 +119,10 @@ namespace Daftar.Data.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("account_id");
 
+                    b.Property<int?>("CounterAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_account_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -156,6 +160,8 @@ namespace Daftar.Data.Migrations
 
                     b.HasIndex("AccountId");
 
+                    b.HasIndex("CounterAccountId");
+
                     b.HasIndex("Date");
 
                     b.ToTable("journal_entries", null, t =>
@@ -182,7 +188,14 @@ namespace Daftar.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Daftar.Models.Account", "CounterAccount")
+                        .WithMany()
+                        .HasForeignKey("CounterAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Account");
+
+                    b.Navigation("CounterAccount");
                 });
 
             modelBuilder.Entity("Daftar.Models.Account", b =>

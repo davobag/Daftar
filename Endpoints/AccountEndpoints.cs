@@ -44,7 +44,7 @@ public static class AccountEndpoints
 
         g.MapDelete("/{id:int}", async (int id, AppDbContext db) =>
         {
-            if (await db.JournalEntries.AnyAsync(e => e.AccountId == id))
+            if (await db.JournalEntries.AnyAsync(e => e.AccountId == id || e.CounterAccountId == id))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["account"] = ["این حساب سند دارد و حذف نمی‌شود."] });
             if (await db.Accounts.AnyAsync(a => a.ParentId == id))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["account"] = ["این حساب زیرحساب دارد؛ اول زیرحساب‌ها را حذف یا جابه‌جا کنید."] });

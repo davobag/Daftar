@@ -2,7 +2,17 @@
 (function () {
   "use strict";
   var $ = D.$, toFa = D.toFa, toEn = D.toEn, esc = D.esc;
-  var entries = [], pendingDelete = null, expanded = {};
+  var entries = [], pendingDelete = null, expanded = {}, selected = {};
+
+  // double entry: each entry posts to its account, and (mirrored) to its counter account when it has one
+  function postings(list) {
+    var out = [];
+    list.forEach(function (e) {
+      out.push({ e: e, acc: e.accountId, debit: e.debit || 0, credit: e.credit || 0, other: e.counterId, mirror: false });
+      if (e.counterId) out.push({ e: e, acc: e.counterId, debit: e.credit || 0, credit: e.debit || 0, other: e.accountId, mirror: true });
+    });
+    return out;
+  }
 
   function load() {
     D.setStatus("در حال بارگذاری…");
@@ -34,17 +44,20 @@
     $("filterErr").textContent = fErr.length ? fErr.join("، ") + " (نمونه: ۱۴۰۵/۰۸/۰۱)." : "";
     var accQ = D.normName($("rAccount").value), allowed = allowedAccounts();
 
-    var running = {}, own = {}, rows = [];
-    D.sortEntries(entries).forEach(function (e) {
-      var acc = e.accountId;
+    var running = {}, own = {}, rows = [], onlyNo = $("onlyNoCounter").checked;
+    postings(D.sortEntries(entries)).forEach(function (p) {
+      var acc = p.acc, e = p.e;
       if (allowed && !allowed[acc]) return;
-      running[acc] = (running[acc] || 0) + (e.debit || 0) - (e.credit || 0);
+      running[acc] = (running[acc] || 0) + p.debit - p.credit;
       if (to && e.date > to) return;
       var s = own[acc] || (own[acc] = { opening: 0, debit: 0, credit: 0, n: 0 });
       s.n++;
-      if (from && e.date < from) { s.opening += (e.debit || 0) - (e.credit || 0); return; }
-      s.debit += e.debit || 0; s.credit += e.credit || 0;
-      rows.push({ e: e, bal: running[acc] });
+      if (from && e.date < from) { s.opening += p.debit - p.credit; return; }
+      s.debit += p.debit; s.credit += p.credit;
+      // without an account filter each entry is listed once (from its own account's side)
+      if (!allowed && p.mirror) return;
+      if (onlyNo && e.counterId) return;
+      rows.push({ p: p, e: e, bal: running[acc] });
     });
 
     function rollup(id) {
@@ -90,19 +103,64 @@
     $("summaryNote").textContent = period ? "(" + period.trim() + ")" : "(تا امروز)";
     $("journalNote").textContent = "(" + D.fmt(rows.length) + " سند" + (accQ ? "، حساب: " + toFa(accQ) : "") + ")";
 
+    var noCounter = entries.filter(function (e) { return !e.counterId; }).length;
+    $("noCounterCount").textContent = noCounter ? "(" + D.fmt(noCounter) + " سند)" : "(همه حساب متقابل دارند)";
+    var visibleIds = {};
+    rows.forEach(function (r) { visibleIds[r.e.id] = 1; });
+    Object.keys(selected).forEach(function (id) { if (!visibleIds[id]) delete selected[id]; });
+    var nSel = Object.keys(selected).length;
+    $("bulkActions").hidden = !nSel;
+    $("bulkCount").textContent = D.fmt(nSel) + " سند انتخاب شد";
+    $("selAll").checked = rows.length > 0 && nSel === Object.keys(visibleIds).length;
+    $("selAll").indeterminate = nSel > 0 && !$("selAll").checked;
+    var bc = $("bulkCounter"), bcCur = bc.value;
+    bc.innerHTML = '<option value="">— انتخاب کنید —</option>' + D.treeOrder().map(function (x) {
+      return '<option value="' + x.a.id + '">' + "\u00a0\u00a0".repeat(x.depth) + toFa(x.a.code) + " - " + esc(x.a.name) + "</option>";
+    }).join("") + '<option value="none">(برداشتن حساب متقابل)</option>';
+    bc.value = bcCur;
+
     $("journalBody").innerHTML = rows.slice().reverse().map(function (r) {
-      var e = r.e, acc = D.accById(e.accountId);
+      var e = r.e, p = r.p, acc = D.accById(p.acc), other = p.other ? D.accById(p.other) : null;
       var actions = String(pendingDelete) === String(e.id)
         ? '<span class="confirm">حذف شود؟ <button type="button" class="small danger" data-del-yes="' + e.id + '">بله</button><button type="button" class="small" data-del-no="1">نه</button></span>'
         : '<a class="small" href="/?edit=' + e.id + '">ویرایش</a> <button type="button" class="small" data-del="' + e.id + '">حذف</button>';
-      return '<tr><td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(e.code) + '</span> <button type="button" class="acct-link" data-acc="' + e.code + '">' +
-        esc(acc ? D.pathOf(acc) : e.account) + "</button></td>" +
-        '<td class="amt dr">' + (e.debit ? D.fmtOut(e.debit) : "") + '</td><td class="amt cr">' + (e.credit ? D.fmtOut(e.credit) : "") + "</td>" +
+      var code = acc ? acc.code : e.code;
+      return '<tr' + (selected[e.id] ? ' class="selected"' : "") + '><td class="sel"><input type="checkbox" data-sel="' + e.id + '"' + (selected[e.id] ? " checked" : "") + ' aria-label="انتخاب سند"></td>' +
+        '<td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(code) + '</span> <button type="button" class="acct-link" data-acc="' + code + '">' +
+        esc(acc ? D.pathOf(acc) : e.account) + "</button>" +
+        (other ? ' <span class="counter">⇄ <button type="button" class="acct-link" data-acc="' + other.code + '">' + esc(D.pathOf(other)) + "</button></span>" : ' <span class="counter missing">⇄ ؟</span>') + "</td>" +
+        '<td class="amt dr">' + (p.debit ? D.fmtOut(p.debit) : "") + '</td><td class="amt cr">' + (p.credit ? D.fmtOut(p.credit) : "") + "</td>" +
         '<td class="amt">' + D.fmtOut(Math.abs(r.bal)) + " " + D.statusTag(r.bal) + "</td><td>" + esc(e.method) + '</td><td class="desc">' + esc(e.desc) + "</td><td>" + actions + "</td></tr>";
-    }).join("") || '<tr><td colspan="8" class="empty">' + (hasData ? "سندی در این بازه نیست." : "سندهای ثبت‌شده اینجا به ترتیب تاریخ می‌آیند، با مانده هر حساب بعد از هر سند.") + "</td></tr>";
+    }).join("") || '<tr><td colspan="9" class="empty">' + (hasData ? "سندی در این بازه نیست." : "سندهای ثبت‌شده اینجا به ترتیب تاریخ می‌آیند، با مانده هر حساب بعد از هر سند.") + "</td></tr>";
   }
 
   ["rFrom", "rTo", "rAccount"].forEach(function (id) { $(id).addEventListener("input", render); });
+  $("onlyNoCounter").addEventListener("change", render);
+  $("journalBody").addEventListener("change", function (ev) {
+    var id = ev.target.dataset && ev.target.dataset.sel; if (!id) return;
+    if (ev.target.checked) selected[id] = 1; else delete selected[id];
+    render();
+  });
+  $("selAll").addEventListener("change", function () {
+    var on = $("selAll").checked;
+    selected = {};
+    if (on) Array.prototype.forEach.call(document.querySelectorAll("#journalBody [data-sel]"), function (c) { selected[c.dataset.sel] = 1; });
+    render();
+  });
+  $("bulkClear").addEventListener("click", function () { selected = {}; render(); });
+  $("bulkApply").addEventListener("click", function () {
+    var v = $("bulkCounter").value, err = $("bulkErr");
+    if (!v) { err.textContent = "حساب متقابل را انتخاب کنید."; return; }
+    var ids = Object.keys(selected).map(Number), cid = v === "none" ? null : +v;
+    err.textContent = ""; $("bulkApply").disabled = true;
+    D.api("POST", "/api/entries/counter", { ids: ids, counterAccountId: cid }).then(function (r) {
+      entries.forEach(function (e) { if (selected[e.id] && (cid === null || e.accountId !== cid)) e.counterId = cid; });
+      selected = {}; $("bulkCounter").value = "";
+      render();
+      D.setStatus(cid === null ? "حساب متقابل " + D.fmt(r.updated) + " سند برداشته شد." :
+        "حساب متقابل به " + D.fmt(r.updated) + " سند اختصاص یافت." + (r.skipped ? " " + D.fmt(r.skipped) + " سند که حساب خودشان همین بود، تغییر نکرد." : ""));
+    }).catch(function (e) { err.textContent = e.message; }).then(function () { $("bulkApply").disabled = false; });
+  });
   $("clearFilters").addEventListener("click", function () { $("rFrom").value = ""; $("rTo").value = ""; $("rAccount").value = ""; render(); });
 
   document.addEventListener("click", function (ev) {

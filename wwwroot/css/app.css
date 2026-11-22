@@ -180,3 +180,13 @@ dialog.modal label { display: flex; flex-direction: column; gap: 4px; }
 dialog.modal .sub-hint { margin: 0; }
 dialog.modal .err:empty { display: none; }
 .modal-btns { justify-content: flex-start; }
+.counter { color: var(--muted); font-size: .82rem; }
+.counter.missing { color: var(--warn-fg); }
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 8px; }
+.bulk-bar label.check, .bulk-bar label.inline { flex-direction: row; align-items: center; gap: 6px; color: var(--ink); white-space: nowrap; }
+.bulk-bar input[type=checkbox] { width: auto; }
+.bulk-bar label.inline select { width: auto; max-width: 60vw; padding: 4px 8px; }
+.bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--accent-soft); padding: 6px 10px; border-radius: 8px; }
+.bulk-actions[hidden] { display: none; }
+th.sel, td.sel { width: 1%; padding-inline-end: 0; }
+tr.selected td { background: var(--accent-soft); }

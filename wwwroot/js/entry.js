@@ -20,6 +20,8 @@
     function conv(v) { var r = v * D.inFactor(); return (other === "Toman" ? r / 10 : r).toLocaleString("fa-IR", { maximumFractionDigits: 1 }); }
     if (d > 0) parts.push("بدهکار: <b>" + conv(d) + "</b> " + D.unitName[other]);
     if (c > 0) parts.push("بستانکار: <b>" + conv(c) + "</b> " + D.unitName[other]);
+    var ca = typeof counterPicker !== "undefined" && counterPicker.selected;
+    if (ca && (d > 0 || c > 0)) parts.push("«" + esc(ca.name) + "» " + (d > 0 && c > 0 ? "برعکس" : d > 0 ? "بستانکار" : "بدهکار") + " می‌شود");
     $("rialHint").innerHTML = parts.join("، ");
   }
   $("fDebit").addEventListener("input", updateHint);
@@ -60,12 +62,13 @@
       } else exact = pool.find(function (a) { return o.label(a) === raw || a.name === raw; }) || null;
       if (exact) { P.selected = exact; hint.innerHTML = "کد <b>" + toFa(exact.code) + "</b>"; }
       else if (isCode) hint.textContent = "کدی با این شماره اینجا نیست.";
+      else if (o.noNew) hint.textContent = "حسابی با این نام نیست؛ اول در صفحه‌ی حساب‌ها بسازید.";
       else { P.newName = raw; hint.textContent = o.newHint; }
       if (o.onChange) o.onChange(P.selected);
       items = pool.filter(function (a) { return String(a.code).indexOf(q) === 0 || o.label(a).indexOf(raw) !== -1; })
         .sort(function (a, b) { return (exact && b.id === exact.id ? 1 : 0) - (exact && a.id === exact.id ? 1 : 0) || a.code - b.code; })
         .slice(0, 12);
-      if (!exact && !isCode) items.push({ isNew: true, name: raw });
+      if (!exact && !isCode && !o.noNew) items.push({ isNew: true, name: raw });
       idx = items.length ? 0 : -1;
       draw();
     }
@@ -107,7 +110,7 @@
     onChange: function (a) { syncSub(a); },
     next: function () {
       var a = acctPicker.selected;
-      if (a && descendants(a).length || acctPicker.newName) $("fSub").focus(); else $("fDebit").focus();
+      if (a && descendants(a).length || acctPicker.newName) $("fSub").focus(); else $("fCounter").focus();
     }
   });
   var subPicker = makePicker({
@@ -116,6 +119,14 @@
     label: function (a) { return acctPicker.selected ? relPath(a, acctPicker.selected) : a.name; },
     newLabel: function (n) { return "زیرحساب جدید: «" + n + "» (کد خودکار)"; },
     newHint: "زیرحساب جدید با ثبت سند ساخته می‌شود.",
+    next: function () { $("fCounter").focus(); }
+  });
+  // counter account (double entry): any existing account, by code or name; optional
+  var counterPicker = makePicker({
+    input: "fCounter", list: "counterSuggest", hint: "counterHint", noNew: true,
+    pool: function () { return D.treeOrder().map(function (x) { return x.a; }); },
+    label: function (a) { return D.pathOf(a); },
+    onChange: function () { updateHint(); },
     next: function () { $("fDebit").focus(); }
   });
   var lastRootId = null;
@@ -136,7 +147,7 @@
     $("saveBtn").textContent = "ثبت سند";
     $("saveNextBtn").hidden = false;
     $("formErr").textContent = "";
-    acctPicker.set(null); subPicker.set(null, true); acctPicker.close(); subPicker.close();
+    acctPicker.set(null); subPicker.set(null, true); counterPicker.set(null, true); acctPicker.close(); subPicker.close(); counterPicker.close();
     updateHint();
   }
   function startEdit(id) {
@@ -147,6 +158,7 @@
     var a = D.accById(e.accountId), r = rootOf(a);
     acctPicker.set(r);
     if (a && r && a.id !== r.id) subPicker.set(a);
+    counterPicker.set(e.counterId ? D.accById(e.counterId) : null, true);
     $("fDebit").value = e.debit ? toFa(e.debit / D.inFactor()) : "";
     $("fCredit").value = e.credit ? toFa(e.credit / D.inFactor()) : "";
     $("fMethod").value = e.method;
@@ -169,7 +181,7 @@
   $("cancelEdit").addEventListener("click", function () { dlg.close(); });
   dlg.addEventListener("mousedown", function (ev) { if (ev.target === dlg) dlg.close(); }); // click on backdrop
   dlg.addEventListener("close", function () {
-    acctPicker.close(); subPicker.close();
+    acctPicker.close(); subPicker.close(); counterPicker.close();
     if (editingId) { resetForm(); history.replaceState(null, "", "/"); }
   });
 
@@ -183,13 +195,16 @@
     if (!date) { err.textContent = "تاریخ را به شکل ۱۴۰۵/۰۸/۱۳ وارد کنید."; return; }
     if (!acct && !acctNew) { err.textContent = acctText ? "حسابی با کد " + toFa(toEn(acctText)) + " وجود ندارد." : "کد یا نام حساب را وارد کنید."; return; }
     if (subText && !sub && !subNew) { err.textContent = "زیرحسابی با کد " + toFa(toEn(subText)) + " زیر این حساب نیست."; return; }
+    var counter = counterPicker.selected;
+    if (D.normName($("fCounter").value) && !counter) { err.textContent = "حساب متقابل را از فهرست انتخاب کنید یا خالی بگذارید."; return; }
+    if (counter && sub ? counter.id === sub.id : counter && !subNew && acct && counter.id === acct.id) { err.textContent = "حساب متقابل نمی‌تواند همان حساب سند باشد."; return; }
     if (isNaN(debit) || isNaN(credit)) { err.textContent = "مبلغ را به " + D.unitName[D.cfg.inputCurrency] + " و بدون اعشار وارد کنید."; return; }
     if (debit <= 0 && credit <= 0) { err.textContent = "یکی از مبالغ بدهکار یا بستانکار را وارد کنید."; return; }
     err.textContent = "";
     var payload = { date: date, debit: debit * D.inFactor(), credit: credit * D.inFactor(),
-      paymentMethod: $("fMethod").value, description: $("fDesc").value.trim() };
+      paymentMethod: $("fMethod").value, description: $("fDesc").value.trim(), counterAccountId: counter ? counter.id : null };
     var btn = $("saveBtn"), btn2 = $("saveNextBtn"); btn.disabled = btn2.disabled = true;
-    var keepDate = $("fDate").value, keepMethod = $("fMethod").value, wasEdit = editingId;
+    var keepDate = $("fDate").value, keepMethod = $("fMethod").value, keepCounter = counter, wasEdit = editingId;
     function create(name, parentId) {
       return D.api("POST", "/api/accounts", { name: name, parentId: parentId }).then(function (a) { D.accounts.push(a); return a; });
     }
@@ -207,7 +222,7 @@
       renderRecent();
       resetForm();
       if (wasEdit) history.replaceState(null, "", "/");
-      else { $("fDate").value = keepDate; $("fMethod").value = keepMethod; }
+      else { $("fDate").value = keepDate; $("fMethod").value = keepMethod; counterPicker.set(keepCounter, true); updateHint(); }
       D.setStatus(wasEdit ? "سند ویرایش شد." : "سند ثبت شد.");
       if (stayOpen && !wasEdit) $("fAccount").focus(); else dlg.close();
     }).catch(function (e) {
@@ -230,7 +245,7 @@
       var actions = String(pendingDelete) === String(e.id)
         ? '<span class="confirm">حذف شود؟ <button type="button" class="small danger" data-del-yes="' + e.id + '">بله</button><button type="button" class="small" data-del-no="1">نه</button></span>'
         : '<button type="button" class="small" data-edit="' + e.id + '">ویرایش</button> <button type="button" class="small" data-del="' + e.id + '">حذف</button>';
-      return '<tr><td class="time">' + timeOf(e.createdAt) + '</td><td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(e.code) + "</span> " + esc(acc ? D.pathOf(acc) : e.account) + "</td>" +
+      return '<tr><td class="time">' + timeOf(e.createdAt) + '</td><td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(e.code) + "</span> " + esc(acc ? D.pathOf(acc) : e.account) + D.counterTag(e) + "</td>" +
         '<td class="amt dr">' + (e.debit ? D.fmtOut(e.debit) : "") + '</td><td class="amt cr">' + (e.credit ? D.fmtOut(e.credit) : "") + "</td>" +
         "<td>" + esc(e.method) + '</td><td class="desc">' + esc(e.desc) + "</td><td>" + actions + "</td></tr>";
     }).join("") : "";

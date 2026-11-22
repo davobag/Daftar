@@ -66,6 +66,13 @@
         </div>
         <span class="hint" id="subHint"></span>
       </label>
+      <label><span>حساب متقابل <span class="unit">(اختیاری، برای حسابداری دوبل)</span></span>
+        <div class="picker">
+          <input id="fCounter" placeholder="کد یا نام، مثلاً صندوق" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="counterSuggest">
+          <ul id="counterSuggest" class="suggest" role="listbox" hidden></ul>
+        </div>
+        <span class="hint" id="counterHint"></span>
+      </label>
       <div class="row2">
         <label><span>بدهکار (<span class="inUnit">تومان</span>)</span>
           <input id="fDebit" class="num" inputmode="numeric" placeholder="۰" autocomplete="off">

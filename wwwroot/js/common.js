@@ -118,7 +118,12 @@
   // ---------- entries ----------
   D.fromServer = function (x) {
     return { id: x.id, date: x.date, accountId: x.accountId, code: x.accountCode, account: x.accountName, debit: x.debit, credit: x.credit,
-      method: x.paymentMethod, desc: x.description || "", createdAt: Date.parse(x.createdAt) || 0 };
+      method: x.paymentMethod, desc: x.description || "", createdAt: Date.parse(x.createdAt) || 0, counterId: x.counterAccountId || null };
+  };
+  // small "⇄ counter account" label for tables (empty when the entry has no counter account yet)
+  D.counterTag = function (e) {
+    var c = e.counterId ? D.accById(e.counterId) : null;
+    return c ? ' <span class="counter" title="حساب متقابل">⇄ ' + D.esc(D.pathOf(c)) + "</span>" : "";
   };
   D.sortEntries = function (list) {
     return list.slice().sort(function (a, b) {
