@@ -29,10 +29,10 @@
       var actions = String(pendingDelete) === String(e.id)
         ? '<span class="confirm">حذف شود؟ <button type="button" class="small danger" data-del-yes="' + e.id + '">بله</button><button type="button" class="small" data-del-no="1">نه</button></span>'
         : '<a class="small" href="/voucher?edit=' + e.id + '">ویرایش</a> <button type="button" class="small" data-del="' + e.id + '">حذف</button>';
-      return '<tr><td class="amt">' + toFa(e.id) + '</td><td class="time">' + timeOf(e.createdAt) + '</td><td class="amt">' + toFa(e.date) + "</td>" +
+      return '<tr><td class="acts-col">' + actions + '</td><td class="amt">' + toFa(e.id) + '</td><td class="time">' + timeOf(e.createdAt) + '</td><td class="amt">' + toFa(e.date) + "</td>" +
         "<td>" + side(v.dr) + "</td><td>" + side(v.cr) + "</td>" +
         '<td class="amt">' + (v.both ? D.fmtOut(e.debit) + " / " + D.fmtOut(e.credit) : D.fmtOut(v.amount)) + "</td>" +
-        "<td>" + D.esc(e.method) + '</td><td class="desc">' + D.esc(e.desc) + "</td><td>" + actions + "</td></tr>";
+        "<td>" + D.esc(e.method) + '</td><td class="desc">' + D.esc(e.desc) + "</td></tr>";
     }).join("");
     $("recentBody").closest(".table-scroll").hidden = !list.length;
     $("recentEmpty").hidden = !!list.length;

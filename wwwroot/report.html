@@ -42,6 +42,14 @@
     </div>
 
     <div class="section-title">دفتر روزنامه <span class="unit" id="journalNote"></span></div>
+    <div class="day-pager" id="dayPager">
+      <button type="button" class="small" id="dayFirst">اولین</button>
+      <button type="button" class="small" id="dayPrev">→ روز قبل</button>
+      <select id="daySelect" aria-label="تاریخ"></select>
+      <button type="button" class="small" id="dayNext">روز بعد ←</button>
+      <button type="button" class="small" id="dayLast">آخرین</button>
+      <label class="check"><input type="checkbox" id="dayAll"> همه‌ی روزها</label>
+    </div>
     <div class="bulk-bar">
       <label class="check"><input type="checkbox" id="onlyNoCounter"> فقط اسناد بدون حساب مقابل <span class="unit" id="noCounterCount"></span></label>
       <div class="bulk-actions" id="bulkActions" hidden>
@@ -58,7 +66,7 @@
     <div class="err" id="bulkErr" role="alert"></div>
     <div class="table-scroll">
       <table>
-        <thead><tr><th class="sel"><input type="checkbox" id="selAll" aria-label="انتخاب همه"></th><th class="amt">ش. سند</th><th>تاریخ</th><th>حساب [تفصیلی] ⇄ حساب مقابل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش پرداخت</th><th>شرح</th><th></th></tr></thead>
+        <thead><tr><th class="sel"><input type="checkbox" id="selAll" aria-label="انتخاب همه"></th><th class="acts-col">عملیات</th><th class="amt">ش. سند</th><th>تاریخ</th><th>حساب [تفصیلی] ⇄ حساب مقابل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش پرداخت</th><th>شرح</th></tr></thead>
         <tbody id="journalBody"></tbody>
       </table>
     </div>

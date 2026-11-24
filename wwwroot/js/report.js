@@ -3,6 +3,7 @@
   "use strict";
   var $ = D.$, toFa = D.toFa, toEn = D.toEn, esc = D.esc;
   var entries = [], pendingDelete = null, expanded = {}, selected = {};
+  var day = null, allDays = false; // journal page: one date at a time (null = latest)
 
   // double entry: each entry posts to its account, and (mirrored) to its counter account when it has one
   function postings(list) {
@@ -115,7 +116,29 @@
 
     var period = (from ? "از " + toFa(from) + " " : "") + (to ? "تا " + toFa(to) : "");
     $("summaryNote").textContent = period ? "(" + period.trim() + ")" : "(تا امروز)";
-    $("journalNote").textContent = "(" + D.fmt(rows.length) + " ردیف" + (accQ ? "، حساب: " + toFa(accQ) : "") + (detQ ? "، تفصیلی: " + toFa(detQ) : "") + ")";
+    // ---------- page the journal by date ----------
+    var counts = {};
+    rows.forEach(function (r) { counts[r.e.date] = (counts[r.e.date] || 0) + 1; });
+    var dates = Object.keys(counts).sort(); // oldest → newest
+    if (!dates.length) day = null;
+    else if (!day || !counts[day]) {
+      // keep near the chosen day: the closest earlier date with vouchers, else the newest
+      var before = day ? dates.filter(function (d) { return d <= day; }) : [];
+      day = before.length ? before[before.length - 1] : dates[dates.length - 1];
+    }
+    var di = dates.indexOf(day);
+    $("daySelect").innerHTML = dates.slice().reverse().map(function (d) {
+      return '<option value="' + d + '">' + toFa(d) + " (" + D.fmt(counts[d]) + " ردیف)</option>";
+    }).join("");
+    if (day) $("daySelect").value = day;
+    $("daySelect").disabled = allDays || !dates.length;
+    $("dayPrev").disabled = $("dayFirst").disabled = allDays || di <= 0;
+    $("dayNext").disabled = $("dayLast").disabled = allDays || di < 0 || di >= dates.length - 1;
+    $("dayAll").checked = allDays;
+    var totalRows = rows.length;
+    if (!allDays && day) rows = rows.filter(function (r) { return r.e.date === day; });
+
+    $("journalNote").textContent = "(" + (allDays ? "" : toFa(day || "") + "، ") + D.fmt(rows.length) + (allDays ? "" : " از " + D.fmt(totalRows)) + " ردیف" + (accQ ? "، حساب: " + toFa(accQ) : "") + (detQ ? "، تفصیلی: " + toFa(detQ) : "") + ")";
 
     // detail (تفصیلی) balances
     var detRows = D.details.filter(function (d) { return detTot[d.id]; });
@@ -156,16 +179,36 @@
         : '<a class="small" href="/voucher?edit=' + e.id + '">اصلاح</a> <button type="button" class="small" data-del="' + e.id + '">حذف</button>';
       var code = acc ? acc.code : e.code;
       return '<tr' + (selected[e.id] ? ' class="selected"' : "") + '><td class="sel"><input type="checkbox" data-sel="' + e.id + '"' + (selected[e.id] ? " checked" : "") + ' aria-label="انتخاب سند"></td>' +
+        '<td class="acts-col">' + actions + "</td>" +
         '<td class="amt">' + toFa(e.id) + '</td><td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(code) + '</span> <button type="button" class="acct-link" data-acc="' + code + '">' +
         esc(acc ? D.pathOf(acc) : e.account) + "</button>" + D.detailTag(p.det) +
         (other ? ' <span class="counter">⇄ <button type="button" class="acct-link" data-acc="' + other.code + '">' + esc(D.pathOf(other)) + "</button>" + otherDet + "</span>" : ' <span class="counter missing">⇄ ؟</span>') + "</td>" +
         '<td class="amt dr">' + (p.debit ? D.fmtOut(p.debit) : "") + '</td><td class="amt cr">' + (p.credit ? D.fmtOut(p.credit) : "") + "</td>" +
-        '<td class="amt">' + D.fmtOut(Math.abs(r.bal)) + " " + D.statusTag(r.bal) + "</td><td>" + esc(e.method) + '</td><td class="desc">' + esc(e.desc) + "</td><td>" + actions + "</td></tr>";
+        '<td class="amt">' + D.fmtOut(Math.abs(r.bal)) + " " + D.statusTag(r.bal) + "</td><td>" + esc(e.method) + '</td><td class="desc">' + esc(e.desc) + "</td></tr>";
     }).join("") || '<tr><td colspan="10" class="empty">' + (hasData ? "سندی در این بازه نیست." : "اسناد ثبت‌شده اینجا به ترتیب تاریخ می‌آیند، با مانده‌ی حساب بعد از هر سند.") + "</td></tr>";
   }
 
   ["rFrom", "rTo", "rAccount", "rDetail"].forEach(function (id) { $(id).addEventListener("input", render); });
   $("onlyNoCounter").addEventListener("change", render);
+  function stepDay(to) {
+    var opts = Array.prototype.map.call($("daySelect").options, function (o) { return o.value; }).reverse(); // oldest → newest
+    var i = opts.indexOf(day);
+    if (to === "first") day = opts[0]; else if (to === "last") day = opts[opts.length - 1];
+    else if (opts[i + to]) day = opts[i + to];
+    selected = {}; render();
+  }
+  $("dayPrev").addEventListener("click", function () { stepDay(-1); });
+  $("dayNext").addEventListener("click", function () { stepDay(1); });
+  $("dayFirst").addEventListener("click", function () { stepDay("first"); });
+  $("dayLast").addEventListener("click", function () { stepDay("last"); });
+  $("daySelect").addEventListener("change", function () { day = $("daySelect").value; selected = {}; render(); });
+  $("dayAll").addEventListener("change", function () { allDays = $("dayAll").checked; selected = {}; render(); });
+  // keyboard: Alt+← / Alt+→ moves between days
+  document.addEventListener("keydown", function (ev) {
+    if (!ev.altKey || allDays) return;
+    if (ev.key === "ArrowRight") { ev.preventDefault(); stepDay(-1); } // RTL: right = back in time
+    else if (ev.key === "ArrowLeft") { ev.preventDefault(); stepDay(1); }
+  });
   $("journalBody").addEventListener("change", function (ev) {
     var id = ev.target.dataset && ev.target.dataset.sel; if (!id) return;
     if (ev.target.checked) selected[id] = 1; else delete selected[id];
