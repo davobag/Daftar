@@ -118,12 +118,20 @@
   // ---------- entries ----------
   D.fromServer = function (x) {
     return { id: x.id, date: x.date, accountId: x.accountId, code: x.accountCode, account: x.accountName, debit: x.debit, credit: x.credit,
-      method: x.paymentMethod, desc: x.description || "", createdAt: Date.parse(x.createdAt) || 0, counterId: x.counterAccountId || null };
+      method: x.paymentMethod, desc: x.description || "", createdAt: Date.parse(x.createdAt) || 0, counterId: x.counterAccountId || null,
+      detailId: x.detailId || null, counterDetailId: x.counterDetailId || null };
   };
   // small "⇄ counter account" label for tables (empty when the entry has no counter account yet)
   D.counterTag = function (e) {
     var c = e.counterId ? D.accById(e.counterId) : null;
-    return c ? ' <span class="counter" title="حساب متقابل">⇄ ' + D.esc(D.pathOf(c)) + "</span>" : "";
+    return c ? ' <span class="counter" title="حساب مقابل">⇄ ' + D.esc(D.pathOf(c)) + D.detailTag(e.counterDetailId) + "</span>" : "";
+  };
+  /** An entry seen as a two-row voucher: which account/detail is on the debit row and which on the credit row. */
+  D.asVoucher = function (e) {
+    var main = { acc: e.accountId, det: e.detailId }, other = e.counterId ? { acc: e.counterId, det: e.counterDetailId } : null;
+    if (e.debit > 0 && e.credit > 0) return { dr: main, cr: main, amount: 0, both: true, primary: "dr" };
+    if (e.credit > 0) return { dr: other, cr: main, amount: e.credit, both: false, primary: "cr" };
+    return { dr: main, cr: other, amount: e.debit, both: false, primary: "dr" };
   };
   D.sortEntries = function (list) {
     return list.slice().sort(function (a, b) {
@@ -166,11 +174,90 @@
     return set;
   };
 
+  // ---------- floating detail accounts (تفصیلی) ----------
+  D.details = [];
+  D.loadDetails = function () { return D.api("GET", "/api/details").then(function (d) { D.details = d || []; return D.details; }); };
+  D.detById = function (id) { return D.details.find(function (d) { return String(d.id) === String(id); }) || null; };
+  D.detailTag = function (id) {
+    var d = id ? D.detById(id) : null;
+    return d ? ' <span class="detail-tag" title="تفصیلی">' + D.esc(d.name) + "</span>" : "";
+  };
+  /** "account [detail]" for one side of an entry. */
+  D.sideLabel = function (accId, detId) {
+    var a = D.accById(accId);
+    return a ? '<span class="code-cell">' + D.toFa(a.code) + "</span> " + D.esc(D.pathOf(a)) + D.detailTag(detId) : "—";
+  };
+
+  /** Type-ahead picker over a list (accounts or details) by code or name. o: input, list, hint ids; pool(); label(a); next(); noNew; onChange. */
+  D.makePicker = function (o) {
+    var toFa = D.toFa, toEn = D.toEn, esc = D.esc;
+    var input = $(o.input), ul = $(o.list), hint = $(o.hint), items = [], idx = -1;
+    var P = { selected: null, newName: null };
+    function close() { ul.hidden = true; input.setAttribute("aria-expanded", "false"); idx = -1; }
+    function draw() {
+      if (!items.length) { close(); return; }
+      ul.innerHTML = items.map(function (it, i) {
+        var sel = ' aria-selected="' + (i === idx) + '"';
+        if (it.isNew) return '<li role="option" data-i="' + i + '"' + sel + '><span class="code new">+</span><span class="new">' + esc(o.newLabel(it.name)) + "</span></li>";
+        return '<li role="option" data-i="' + i + '"' + sel + '><span class="code">' + toFa(it.code) + "</span><span>" + esc(o.label(it)) + "</span></li>";
+      }).join("");
+      ul.hidden = false; input.setAttribute("aria-expanded", "true");
+    }
+    P.set = function (a, silent) {
+      P.selected = a || null; P.newName = null;
+      input.value = a ? o.label(a) : "";
+      hint.innerHTML = a ? "کد <b>" + toFa(a.code) + "</b>" : "";
+      if (!silent && o.onChange) o.onChange(P.selected);
+    };
+    P.close = close;
+    function onInput() {
+      var raw = D.normName(input.value), q = toEn(raw), isCode = /^\d+$/.test(q), pool = o.pool();
+      P.selected = null; P.newName = null; hint.innerHTML = "";
+      if (!q) { items = pool.slice(0, 12); idx = -1; draw(); if (o.onChange) o.onChange(null); return; }
+      var exact = null;
+      if (isCode) {
+        exact = pool.find(function (a) { return String(a.code) === q; }) || null;
+        if (!exact && o.onForeignCode) { var f = o.byCode ? o.byCode(+q) : null; if (f && o.onForeignCode(f)) { close(); return; } }
+      } else exact = pool.find(function (a) { return o.label(a) === raw || a.name === raw; }) || null;
+      if (exact) { P.selected = exact; hint.innerHTML = "کد <b>" + toFa(exact.code) + "</b>"; }
+      else if (isCode) hint.textContent = "کدی با این شماره اینجا نیست.";
+      else if (o.noNew) hint.textContent = o.missingHint || "با این نام چیزی تعریف نشده؛ اول در کدینگ حساب‌ها بسازید.";
+      else { P.newName = raw; hint.textContent = o.newHint; }
+      if (o.onChange) o.onChange(P.selected);
+      items = pool.filter(function (a) { return String(a.code).indexOf(q) === 0 || o.label(a).indexOf(raw) !== -1; })
+        .sort(function (a, b) { return (exact && b.id === exact.id ? 1 : 0) - (exact && a.id === exact.id ? 1 : 0) || a.code - b.code; })
+        .slice(0, 12);
+      if (!exact && !isCode && !o.noNew) items.push({ isNew: true, name: raw });
+      idx = items.length ? 0 : -1;
+      draw();
+    }
+    function pick(i) {
+      var it = items[i]; if (!it) return;
+      if (it.isNew) { P.selected = null; P.newName = it.name; input.value = it.name; hint.textContent = o.newHint; if (o.onChange) o.onChange(null); }
+      else P.set(it);
+      close();
+      o.next();
+    }
+    input.addEventListener("input", onInput);
+    input.addEventListener("focus", function () { if (!P.selected && !P.newName) onInput(); });
+    input.addEventListener("blur", function () { setTimeout(function () { if (document.activeElement !== input) close(); }, 150); });
+    input.addEventListener("keydown", function (ev) {
+      if (ul.hidden) { if (ev.key === "Enter") { ev.preventDefault(); o.next(); } return; }
+      if (ev.key === "ArrowDown") { ev.preventDefault(); idx = Math.min(idx + 1, items.length - 1); draw(); }
+      else if (ev.key === "ArrowUp") { ev.preventDefault(); idx = Math.max(idx - 1, 0); draw(); }
+      else if (ev.key === "Enter") { ev.preventDefault(); if (idx >= 0) pick(idx); else { close(); o.next(); } }
+      else if (ev.key === "Escape") { ev.preventDefault(); close(); }
+    });
+    ul.addEventListener("mousedown", function (ev) { var li = ev.target.closest("li"); if (!li) return; ev.preventDefault(); pick(+li.dataset.i); });
+    return P;
+  };
+
   // ---------- header, nav and login ----------
   var pages = [
-    { href: "/", label: "ثبت سند" },
-    { href: "/report", label: "گزارش" },
-    { href: "/accounts", label: "حساب‌ها" },
+    { href: "/", label: "داشبورد" },
+    { href: "/voucher", label: "سند حسابداری" },
+    { href: "/report", label: "دفاتر و تراز" },
+    { href: "/accounts", label: "کدینگ حساب‌ها" },
     { href: "/settings", label: "تنظیمات" }
   ];
   function currentPath() { var p = location.pathname.replace(/\.html$/, "").replace(/\/index$/, "/"); return p === "" ? "/" : p; }

@@ -42,6 +42,41 @@ public static class AccountEndpoints
             return Results.Ok(new { a.Id, a.Code, a.Name, a.ParentId, EntryCount = await db.JournalEntries.CountAsync(e => e.AccountId == id) });
         });
 
+        // تبدیل یک معین (زیرحسابِ بدون زیرمجموعه) به تفصیلی شناور:
+        // سندهایش به حساب بالاتر می‌روند و تفصیلی‌شان همین نام می‌شود، بعد خود حساب حذف می‌شود.
+        g.MapPost("/{id:int}/to-detail", async (int id, AppDbContext db) =>
+        {
+            var a = await db.Accounts.FindAsync(id);
+            if (a is null) return Results.NotFound();
+            IResult Bad(string m) => Results.ValidationProblem(new Dictionary<string, string[]> { ["account"] = [m] });
+            if (a.ParentId is not int parentId) return Bad("فقط زیرحساب (معین) به تفصیلی تبدیل می‌شود، نه حساب کل.");
+            if (await db.Accounts.AnyAsync(x => x.ParentId == id)) return Bad("این حساب خودش زیرحساب دارد؛ اول آن‌ها را تبدیل یا جابه‌جا کنید.");
+
+            await using var tx = await db.Database.BeginTransactionAsync();
+            var d = await db.Details.FirstOrDefaultAsync(x => x.Name == a.Name);
+            if (d is null)
+            {
+                var code = Math.Max(1001, (await db.Details.MaxAsync(x => (int?)x.Code) ?? 0) + 1);
+                d = new Detail { Code = code, Name = a.Name, CreatedAt = DateTime.UtcNow };
+                db.Details.Add(d);
+                await db.SaveChangesAsync();
+            }
+            var did = d.Id;
+            if (await db.JournalEntries.AnyAsync(e => (e.AccountId == id && e.DetailId != null && e.DetailId != did)
+                                                   || (e.CounterAccountId == id && e.CounterDetailId != null && e.CounterDetailId != did)))
+                return Bad("بعضی سندهای این حساب تفصیلی دیگری دارند؛ اول آن را بردارید.");
+            if (await db.JournalEntries.AnyAsync(e => (e.AccountId == id && e.CounterAccountId == parentId) || (e.CounterAccountId == id && e.AccountId == parentId)))
+                return Bad("بعضی سندها بین این حساب و حساب بالاترش هستند و بعد از تبدیل دو طرفشان یکی می‌شود.");
+
+            var n1 = await db.JournalEntries.Where(e => e.AccountId == id)
+                .ExecuteUpdateAsync(u => u.SetProperty(e => e.AccountId, parentId).SetProperty(e => e.DetailId, did).SetProperty(e => e.UpdatedAt, DateTime.UtcNow));
+            var n2 = await db.JournalEntries.Where(e => e.CounterAccountId == id)
+                .ExecuteUpdateAsync(u => u.SetProperty(e => e.CounterAccountId, parentId).SetProperty(e => e.CounterDetailId, did).SetProperty(e => e.UpdatedAt, DateTime.UtcNow));
+            await db.Accounts.Where(x => x.Id == id).ExecuteDeleteAsync();
+            await tx.CommitAsync();
+            return Results.Ok(new { detail = new { d.Id, d.Code, d.Name }, moved = n1 + n2 });
+        });
+
         g.MapDelete("/{id:int}", async (int id, AppDbContext db) =>
         {
             if (await db.JournalEntries.AnyAsync(e => e.AccountId == id || e.CounterAccountId == id))

@@ -106,6 +106,43 @@ namespace Daftar.Data.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Daftar.Models.Detail", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Code")
+                        .HasColumnType("integer")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("details", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_detail_code", "code > 0");
+                        });
+                });
+
             modelBuilder.Entity("Daftar.Models.JournalEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -122,6 +159,10 @@ namespace Daftar.Data.Migrations
                     b.Property<int?>("CounterAccountId")
                         .HasColumnType("integer")
                         .HasColumnName("counter_account_id");
+
+                    b.Property<int?>("CounterDetailId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_detail_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -146,6 +187,10 @@ namespace Daftar.Data.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("description");
 
+                    b.Property<int?>("DetailId")
+                        .HasColumnType("integer")
+                        .HasColumnName("detail_id");
+
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -162,7 +207,11 @@ namespace Daftar.Data.Migrations
 
                     b.HasIndex("CounterAccountId");
 
+                    b.HasIndex("CounterDetailId");
+
                     b.HasIndex("Date");
+
+                    b.HasIndex("DetailId");
 
                     b.ToTable("journal_entries", null, t =>
                         {
@@ -193,9 +242,23 @@ namespace Daftar.Data.Migrations
                         .HasForeignKey("CounterAccountId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Daftar.Models.Detail", "CounterDetail")
+                        .WithMany()
+                        .HasForeignKey("CounterDetailId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Daftar.Models.Detail", "Detail")
+                        .WithMany()
+                        .HasForeignKey("DetailId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Account");
 
                     b.Navigation("CounterAccount");
+
+                    b.Navigation("CounterDetail");
+
+                    b.Navigation("Detail");
                 });
 
             modelBuilder.Entity("Daftar.Models.Account", b =>

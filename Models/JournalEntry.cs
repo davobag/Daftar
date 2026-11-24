@@ -16,6 +16,14 @@ public class JournalEntry
     public int? CounterAccountId { get; set; }
     public Account? CounterAccount { get; set; }
 
+    /// <summary>تفصیلی شناورِ طرف حساب سند (شخص، پروژه، مرکز هزینه). اختیاری.</summary>
+    public int? DetailId { get; set; }
+    public Detail? Detail { get; set; }
+
+    /// <summary>تفصیلی شناورِ طرف حساب متقابل. اختیاری و فقط وقتی حساب متقابل دارد.</summary>
+    public int? CounterDetailId { get; set; }
+    public Detail? CounterDetail { get; set; }
+
     /// <summary>مبلغ بدهکار به ریال.</summary>
     public long Debit { get; set; }
 

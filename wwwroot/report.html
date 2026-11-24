@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>گزارش · دفتر روزنامه</title>
+<title>دفاتر و تراز · دفتر روزنامه</title>
 <link rel="stylesheet" href="/css/fonts.css">
 <link rel="stylesheet" href="/css/app.css">
 </head>
@@ -11,39 +11,54 @@
 <div class="wrap" id="appView" hidden>
   <header id="appHeader"></header>
   <section class="panel" aria-labelledby="reportTitle">
-    <h2 id="reportTitle">گزارش <span class="unit">مبالغ به <span class="outUnit">ریال</span></span></h2>
+    <h2 id="reportTitle">دفاتر و تراز <span class="unit">مبالغ به <span class="outUnit">ریال</span></span></h2>
     <div class="filters">
       <label>از تاریخ <input id="rFrom" class="num" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off"></label>
       <label>تا تاریخ <input id="rTo" class="num" placeholder="۱۴۰۵/۱۲/۲۹" autocomplete="off"></label>
-      <label class="acc">کد یا نام حساب <input id="rAccount" list="accountList" placeholder="همه حساب‌ها" autocomplete="off"></label>
+      <label class="acc">حساب کل / معین <input id="rAccount" list="accountList" placeholder="همه حساب‌ها" autocomplete="off"></label>
+      <label class="acc">تفصیلی <input id="rDetail" list="detailList" placeholder="همه تفصیلی‌ها" autocomplete="off"></label>
       <button type="button" id="clearFilters">همه</button>
     </div>
-    <datalist id="accountList"></datalist>
+    <datalist id="accountList"></datalist><datalist id="detailList"></datalist>
     <div class="err" id="filterErr"></div>
 
-    <div class="section-title">مانده حساب‌ها <span class="unit" id="summaryNote"></span></div>
+    <div class="section-title">تراز آزمایشی (کل و معین) <span class="unit" id="summaryNote"></span></div>
     <div class="table-scroll">
       <table>
-        <thead><tr><th class="amt">کد</th><th>حساب</th><th class="amt">مانده از قبل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده</th><th>وضعیت</th></tr></thead>
+        <thead><tr><th class="amt">کد</th><th>حساب</th><th class="amt">مانده ابتدای دوره</th><th class="amt">گردش بدهکار</th><th class="amt">گردش بستانکار</th><th class="amt">مانده</th><th>ماهیت</th></tr></thead>
         <tbody id="summaryBody"></tbody>
         <tfoot id="summaryFoot"></tfoot>
       </table>
     </div>
 
+    <div id="detailSection" hidden>
+      <div class="section-title">تراز تفصیلی‌ها</div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th class="amt">کد</th><th>تفصیلی</th><th class="amt">مانده ابتدای دوره</th><th class="amt">گردش بدهکار</th><th class="amt">گردش بستانکار</th><th class="amt">مانده</th><th>ماهیت</th></tr></thead>
+          <tbody id="detailBody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="section-title">دفتر روزنامه <span class="unit" id="journalNote"></span></div>
     <div class="bulk-bar">
-      <label class="check"><input type="checkbox" id="onlyNoCounter"> فقط سندهای بدون حساب متقابل <span class="unit" id="noCounterCount"></span></label>
+      <label class="check"><input type="checkbox" id="onlyNoCounter"> فقط اسناد بدون حساب مقابل <span class="unit" id="noCounterCount"></span></label>
       <div class="bulk-actions" id="bulkActions" hidden>
         <strong id="bulkCount"></strong>
-        <label class="inline">حساب متقابل <select id="bulkCounter"></select></label>
+        <label class="inline">حساب مقابل <select id="bulkCounter"></select></label>
         <button type="button" class="primary small" id="bulkApply">اختصاص</button>
+        <span class="bulk-sep"></span>
+        <label class="inline">تفصیلی <select id="bulkDetail"></select></label>
+        <label class="inline">برای <select id="bulkDetailSide"><option value="account">حساب سند</option><option value="counter">حساب مقابل</option></select></label>
+        <button type="button" class="primary small" id="bulkDetailApply">اختصاص</button>
         <button type="button" class="small" id="bulkClear">لغو انتخاب</button>
       </div>
     </div>
     <div class="err" id="bulkErr" role="alert"></div>
     <div class="table-scroll">
       <table>
-        <thead><tr><th class="sel"><input type="checkbox" id="selAll" aria-label="انتخاب همه"></th><th>تاریخ</th><th>حساب ⇄ حساب متقابل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش</th><th>توضیحات</th><th></th></tr></thead>
+        <thead><tr><th class="sel"><input type="checkbox" id="selAll" aria-label="انتخاب همه"></th><th class="amt">ش. سند</th><th>تاریخ</th><th>حساب [تفصیلی] ⇄ حساب مقابل</th><th class="amt">بدهکار</th><th class="amt">بستانکار</th><th class="amt">مانده حساب</th><th>روش پرداخت</th><th>شرح</th><th></th></tr></thead>
         <tbody id="journalBody"></tbody>
       </table>
     </div>

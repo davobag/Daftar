@@ -77,12 +77,13 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // صفحه‌ها: /report، /accounts، /settings (صفحه‌ی ثبت سند همان / است)
-foreach (var page in new[] { "report", "accounts", "settings" })
+foreach (var page in new[] { "voucher", "report", "accounts", "settings" })
     app.MapGet("/" + page, (IWebHostEnvironment env) =>
         Results.File(Path.Combine(env.WebRootPath, page + ".html"), "text/html; charset=utf-8"));
 
 app.MapAuthEndpoints();
 app.MapAccountEndpoints();
+app.MapDetailEndpoints();
 app.MapEntryEndpoints();
 app.MapSettingsEndpoints();
 

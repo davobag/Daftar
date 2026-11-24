@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>سند حسابداری · دفتر روزنامه</title>
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="wrap" id="appView" hidden>
+  <header id="appHeader"></header>
+  <section class="panel voucher-panel" aria-labelledby="vTitle">
+    <h2 id="vTitle">صدور سند حسابداری</h2>
+    <form id="voucherForm" novalidate>
+      <div id="editNote" class="editing-note" hidden></div>
+      <div class="voucher-head">
+        <label>تاریخ سند <input id="vDate" class="num" placeholder="۱۴۰۵/۰۹/۰۳" inputmode="numeric" autocomplete="off"></label>
+        <label class="desc-l">شرح سند <input id="vDesc" placeholder="مثلاً: خرید کاغذ برای باسکول" autocomplete="off"></label>
+        <label>روش پرداخت
+          <select id="vMethod">
+            <option>نقدی</option>
+            <option>کارت به کارت</option>
+            <option>کارتخوان</option>
+            <option>انتقال بانکی (پایا/ساتنا)</option>
+            <option>چک</option>
+            <option>سایر</option>
+          </select>
+        </label>
+      </div>
+
+      <table class="voucher-rows">
+        <thead><tr><th>ردیف</th><th>حساب کل / معین</th><th>تفصیلی <span class="unit">(اختیاری)</span></th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="side dr">بدهکار</td>
+            <td class="acc" data-label="حساب کل / معین">
+              <div class="picker">
+                <input id="vDrAcc" placeholder="کد یا نام حساب، مثلاً ۱۰۲۰۴" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vDrAccList" aria-label="حساب بدهکار">
+                <ul id="vDrAccList" class="suggest" role="listbox" hidden></ul>
+              </div>
+              <span class="hint" id="vDrAccHint"></span>
+            </td>
+            <td data-label="تفصیلی (اختیاری)">
+              <div class="picker">
+                <input id="vDrDet" placeholder="شخص، پروژه یا مرکز هزینه" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vDrDetList" aria-label="تفصیلی بدهکار">
+                <ul id="vDrDetList" class="suggest" role="listbox" hidden></ul>
+              </div>
+              <span class="hint" id="vDrDetHint"></span>
+            </td>
+          </tr>
+          <tr>
+            <td class="side cr">بستانکار</td>
+            <td class="acc" data-label="حساب کل / معین">
+              <div class="picker">
+                <input id="vCrAcc" placeholder="مثلاً ۲۰۱ صندوق" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vCrAccList" aria-label="حساب بستانکار">
+                <ul id="vCrAccList" class="suggest" role="listbox" hidden></ul>
+              </div>
+              <span class="hint" id="vCrAccHint"></span>
+            </td>
+            <td data-label="تفصیلی (اختیاری)">
+              <div class="picker">
+                <input id="vCrDet" placeholder="شخص، پروژه یا مرکز هزینه" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="vCrDetList" aria-label="تفصیلی بستانکار">
+                <ul id="vCrDetList" class="suggest" role="listbox" hidden></ul>
+              </div>
+              <span class="hint" id="vCrDetHint"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="sub-hint">هر سند یک بدهکار و یک بستانکار دارد. اگر حساب مقابل هنوز تعریف نشده، یکی از دو ردیف را خالی بگذارید و بعداً از «دفاتر و تراز» اختصاص دهید.</p>
+
+      <div class="voucher-foot">
+        <label><span>مبلغ (<span class="inUnit">تومان</span>)</span>
+          <input id="vAmount" class="num" inputmode="numeric" placeholder="۰" autocomplete="off">
+          <span class="hint" id="vAmountHint"></span>
+        </label>
+        <div></div>
+      </div>
+      <div class="err" id="vErr" role="alert"></div>
+      <div class="btns">
+        <button type="submit" class="primary" id="vSave">ثبت سند</button>
+        <button type="button" id="vReset">پاک کردن فرم</button>
+        <a class="btn" id="vBack" href="/" hidden>انصراف</a>
+      </div>
+    </form>
+  </section>
+</div>
+<script src="/js/common.js"></script>
+<script src="/js/voucher.js"></script>
+</body>
+</html>

@@ -1,277 +1,58 @@
-/* Entry page: record a journal entry in a modal (account + optional sub-account, each by code or name), see today's entries, monthly chart. */
+/* Dashboard: monthly debit/credit chart and the vouchers recorded today. Vouchers are entered on /voucher. */
 (function () {
   "use strict";
-  var $ = D.$, toFa = D.toFa, toEn = D.toEn, esc = D.esc;
-  var entries = [], editingId = null, pendingDelete = null, dlg = $("entryDialog");
+  var $ = D.$, toFa = D.toFa;
+  var entries = [], pendingDelete = null;
 
   function load() {
     D.setStatus("در حال بارگذاری…");
-    return Promise.all([D.loadAccounts(), D.api("GET", "/api/entries")]).then(function (r) {
-      entries = (r[1] || []).map(D.fromServer);
+    return Promise.all([D.loadAccounts(), D.loadDetails(), D.api("GET", "/api/entries")]).then(function (r) {
+      entries = (r[2] || []).map(D.fromServer);
       D.setStatus("");
-      renderRecent();
+      render();
     }).catch(function (e) { D.setStatus("بارگذاری نشد: " + e.message, true); });
   }
 
-  // ---------- amounts hint ----------
-  function updateHint() {
-    var d = D.parseAmount($("fDebit").value), c = D.parseAmount($("fCredit").value), parts = [];
-    var other = D.cfg.inputCurrency === "Toman" ? "Rial" : "Toman";
-    function conv(v) { var r = v * D.inFactor(); return (other === "Toman" ? r / 10 : r).toLocaleString("fa-IR", { maximumFractionDigits: 1 }); }
-    if (d > 0) parts.push("بدهکار: <b>" + conv(d) + "</b> " + D.unitName[other]);
-    if (c > 0) parts.push("بستانکار: <b>" + conv(c) + "</b> " + D.unitName[other]);
-    var ca = typeof counterPicker !== "undefined" && counterPicker.selected;
-    if (ca && (d > 0 || c > 0)) parts.push("«" + esc(ca.name) + "» " + (d > 0 && c > 0 ? "برعکس" : d > 0 ? "بستانکار" : "بدهکار") + " می‌شود");
-    $("rialHint").innerHTML = parts.join("، ");
-  }
-  $("fDebit").addEventListener("input", updateHint);
-  $("fCredit").addEventListener("input", updateHint);
-
-  // ---------- two pickers: main account, then (optional) sub-account; both accept a code or a name ----------
-  function rootOf(a) { var c = a, g = 0; while (c && c.parentId && g++ < 20) c = D.accById(c.parentId); return c; }
-  function relPath(a, root) { var p = D.pathOf(a), r = D.pathOf(root) + " › "; return p.indexOf(r) === 0 ? p.slice(r.length) : p; }
-
-  function makePicker(o) {
-    var input = $(o.input), ul = $(o.list), hint = $(o.hint), items = [], idx = -1;
-    var P = { selected: null, newName: null };
-    function close() { ul.hidden = true; input.setAttribute("aria-expanded", "false"); idx = -1; }
-    function draw() {
-      if (!items.length) { close(); return; }
-      ul.innerHTML = items.map(function (it, i) {
-        var sel = ' aria-selected="' + (i === idx) + '"';
-        if (it.isNew) return '<li role="option" data-i="' + i + '"' + sel + '><span class="code new">+</span><span class="new">' + esc(o.newLabel(it.name)) + "</span></li>";
-        return '<li role="option" data-i="' + i + '"' + sel + '><span class="code">' + toFa(it.code) + "</span><span>" + esc(o.label(it)) + "</span></li>";
-      }).join("");
-      ul.hidden = false; input.setAttribute("aria-expanded", "true");
-    }
-    P.set = function (a, silent) {
-      P.selected = a || null; P.newName = null;
-      input.value = a ? o.label(a) : "";
-      hint.innerHTML = a ? "کد <b>" + toFa(a.code) + "</b>" : "";
-      if (!silent && o.onChange) o.onChange(P.selected);
-    };
-    P.close = close;
-    function onInput() {
-      var raw = D.normName(input.value), q = toEn(raw), isCode = /^\d+$/.test(q), pool = o.pool();
-      P.selected = null; P.newName = null; hint.innerHTML = "";
-      if (!q) { items = pool.slice(0, 12); idx = -1; draw(); if (o.onChange) o.onChange(null); return; }
-      var exact = null;
-      if (isCode) {
-        exact = pool.find(function (a) { return String(a.code) === q; }) || null;
-        if (!exact && o.onForeignCode) { var f = D.accByCode(+q); if (f && o.onForeignCode(f)) { close(); return; } }
-      } else exact = pool.find(function (a) { return o.label(a) === raw || a.name === raw; }) || null;
-      if (exact) { P.selected = exact; hint.innerHTML = "کد <b>" + toFa(exact.code) + "</b>"; }
-      else if (isCode) hint.textContent = "کدی با این شماره اینجا نیست.";
-      else if (o.noNew) hint.textContent = "حسابی با این نام نیست؛ اول در صفحه‌ی حساب‌ها بسازید.";
-      else { P.newName = raw; hint.textContent = o.newHint; }
-      if (o.onChange) o.onChange(P.selected);
-      items = pool.filter(function (a) { return String(a.code).indexOf(q) === 0 || o.label(a).indexOf(raw) !== -1; })
-        .sort(function (a, b) { return (exact && b.id === exact.id ? 1 : 0) - (exact && a.id === exact.id ? 1 : 0) || a.code - b.code; })
-        .slice(0, 12);
-      if (!exact && !isCode && !o.noNew) items.push({ isNew: true, name: raw });
-      idx = items.length ? 0 : -1;
-      draw();
-    }
-    function pick(i) {
-      var it = items[i]; if (!it) return;
-      if (it.isNew) { P.selected = null; P.newName = it.name; input.value = it.name; hint.textContent = o.newHint; if (o.onChange) o.onChange(null); }
-      else P.set(it);
-      close();
-      o.next();
-    }
-    input.addEventListener("input", onInput);
-    input.addEventListener("focus", function () { if (!P.selected && !P.newName) onInput(); });
-    input.addEventListener("blur", function () { setTimeout(function () { if (document.activeElement !== input) close(); }, 150); });
-    input.addEventListener("keydown", function (ev) {
-      if (ul.hidden) { if (ev.key === "Enter") { ev.preventDefault(); o.next(); } return; }
-      if (ev.key === "ArrowDown") { ev.preventDefault(); idx = Math.min(idx + 1, items.length - 1); draw(); }
-      else if (ev.key === "ArrowUp") { ev.preventDefault(); idx = Math.max(idx - 1, 0); draw(); }
-      else if (ev.key === "Enter") { ev.preventDefault(); if (idx >= 0) pick(idx); else { close(); o.next(); } }
-      else if (ev.key === "Escape") { ev.preventDefault(); close(); }
-    });
-    ul.addEventListener("mousedown", function (ev) { var li = ev.target.closest("li"); if (!li) return; ev.preventDefault(); pick(+li.dataset.i); });
-    return P;
-  }
-
-  function descendants(root) {
-    if (!root) return [];
-    var set = D.subtreeIds(root.id);
-    return D.treeOrder().map(function (x) { return x.a; }).filter(function (a) { return set[a.id] && a.id !== root.id; });
-  }
-
-  var acctPicker = makePicker({
-    input: "fAccount", list: "acctSuggest", hint: "acctHint",
-    pool: function () { return D.childrenOf(null); },
-    label: function (a) { return a.name; },
-    newLabel: function (n) { return "حساب اصلی جدید: «" + n + "» (کد خودکار)"; },
-    newHint: "حساب اصلی جدید با ثبت سند ساخته می‌شود.",
-    // typing a sub-account's full code here (e.g. 10201) fills both boxes
-    onForeignCode: function (a) { var r = rootOf(a); if (!r || r.id === a.id) return false; acctPicker.set(r); subPicker.set(a); return true; },
-    onChange: function (a) { syncSub(a); },
-    next: function () {
-      var a = acctPicker.selected;
-      if (a && descendants(a).length || acctPicker.newName) $("fSub").focus(); else $("fCounter").focus();
-    }
-  });
-  var subPicker = makePicker({
-    input: "fSub", list: "subSuggest", hint: "subHint",
-    pool: function () { return descendants(acctPicker.selected); },
-    label: function (a) { return acctPicker.selected ? relPath(a, acctPicker.selected) : a.name; },
-    newLabel: function (n) { return "زیرحساب جدید: «" + n + "» (کد خودکار)"; },
-    newHint: "زیرحساب جدید با ثبت سند ساخته می‌شود.",
-    next: function () { $("fCounter").focus(); }
-  });
-  // counter account (double entry): any existing account, by code or name; optional
-  var counterPicker = makePicker({
-    input: "fCounter", list: "counterSuggest", hint: "counterHint", noNew: true,
-    pool: function () { return D.treeOrder().map(function (x) { return x.a; }); },
-    label: function (a) { return D.pathOf(a); },
-    onChange: function () { updateHint(); },
-    next: function () { $("fDebit").focus(); }
-  });
-  var lastRootId = null;
-  function syncSub(a) {
-    var id = a ? a.id : null, fSub = $("fSub");
-    fSub.disabled = !a && !acctPicker.newName;
-    fSub.placeholder = fSub.disabled ? "اول حساب را انتخاب کنید" : (a && descendants(a).length ? "کد یا نام زیرحساب (خالی = خود حساب)" : "ندارد؛ برای ساختن نام بنویسید");
-    if (id !== lastRootId) { subPicker.set(null, true); lastRootId = id; }
-  }
-
-  // ---------- form ----------
-  function resetForm() {
-    editingId = null;
-    $("entryForm").reset();
-    $("fDate").value = toFa(D.todayJ());
-    $("editNote").hidden = true;
-    $("formTitle").textContent = "ثبت سند جدید";
-    $("saveBtn").textContent = "ثبت سند";
-    $("saveNextBtn").hidden = false;
-    $("formErr").textContent = "";
-    acctPicker.set(null); subPicker.set(null, true); counterPicker.set(null, true); acctPicker.close(); subPicker.close(); counterPicker.close();
-    updateHint();
-  }
-  function startEdit(id) {
-    var e = entries.find(function (x) { return String(x.id) === String(id); });
-    if (!e) return;
-    editingId = e.id;
-    $("fDate").value = toFa(e.date);
-    var a = D.accById(e.accountId), r = rootOf(a);
-    acctPicker.set(r);
-    if (a && r && a.id !== r.id) subPicker.set(a);
-    counterPicker.set(e.counterId ? D.accById(e.counterId) : null, true);
-    $("fDebit").value = e.debit ? toFa(e.debit / D.inFactor()) : "";
-    $("fCredit").value = e.credit ? toFa(e.credit / D.inFactor()) : "";
-    $("fMethod").value = e.method;
-    $("fDesc").value = e.desc || "";
-    $("editNote").hidden = false;
-    $("formTitle").textContent = "ویرایش سند";
-    $("saveBtn").textContent = "ذخیره تغییرات";
-    $("saveNextBtn").hidden = true;
-    updateHint();
-    if (!dlg.open) dlg.showModal();
-    $("fDebit").focus();
-  }
-  function openNew() {
-    if (editingId) resetForm();
-    $("formErr").textContent = "";
-    if (!dlg.open) dlg.showModal();
-    $("fAccount").focus();
-  }
-  $("newEntry").addEventListener("click", openNew);
-  $("cancelEdit").addEventListener("click", function () { dlg.close(); });
-  dlg.addEventListener("mousedown", function (ev) { if (ev.target === dlg) dlg.close(); }); // click on backdrop
-  dlg.addEventListener("close", function () {
-    acctPicker.close(); subPicker.close(); counterPicker.close();
-    if (editingId) { resetForm(); history.replaceState(null, "", "/"); }
-  });
-
-  $("entryForm").addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    var err = $("formErr"), stayOpen = !!(ev.submitter && ev.submitter.dataset.next);
-    var date = D.normDate($("fDate").value);
-    var debit = D.parseAmount($("fDebit").value), credit = D.parseAmount($("fCredit").value);
-    var acct = acctPicker.selected, acctNew = acctPicker.newName, sub = subPicker.selected, subNew = subPicker.newName;
-    var subText = D.normName($("fSub").value), acctText = D.normName($("fAccount").value);
-    if (!date) { err.textContent = "تاریخ را به شکل ۱۴۰۵/۰۸/۱۳ وارد کنید."; return; }
-    if (!acct && !acctNew) { err.textContent = acctText ? "حسابی با کد " + toFa(toEn(acctText)) + " وجود ندارد." : "کد یا نام حساب را وارد کنید."; return; }
-    if (subText && !sub && !subNew) { err.textContent = "زیرحسابی با کد " + toFa(toEn(subText)) + " زیر این حساب نیست."; return; }
-    var counter = counterPicker.selected;
-    if (D.normName($("fCounter").value) && !counter) { err.textContent = "حساب متقابل را از فهرست انتخاب کنید یا خالی بگذارید."; return; }
-    if (counter && sub ? counter.id === sub.id : counter && !subNew && acct && counter.id === acct.id) { err.textContent = "حساب متقابل نمی‌تواند همان حساب سند باشد."; return; }
-    if (isNaN(debit) || isNaN(credit)) { err.textContent = "مبلغ را به " + D.unitName[D.cfg.inputCurrency] + " و بدون اعشار وارد کنید."; return; }
-    if (debit <= 0 && credit <= 0) { err.textContent = "یکی از مبالغ بدهکار یا بستانکار را وارد کنید."; return; }
-    err.textContent = "";
-    var payload = { date: date, debit: debit * D.inFactor(), credit: credit * D.inFactor(),
-      paymentMethod: $("fMethod").value, description: $("fDesc").value.trim(), counterAccountId: counter ? counter.id : null };
-    var btn = $("saveBtn"), btn2 = $("saveNextBtn"); btn.disabled = btn2.disabled = true;
-    var keepDate = $("fDate").value, keepMethod = $("fMethod").value, keepCounter = counter, wasEdit = editingId;
-    function create(name, parentId) {
-      return D.api("POST", "/api/accounts", { name: name, parentId: parentId }).then(function (a) { D.accounts.push(a); return a; });
-    }
-    (acct ? Promise.resolve(acct) : create(acctNew, null)).then(function (root) {
-      if (sub) return sub;
-      if (subNew) return create(subNew, root.id);
-      return root;
-    }).then(function (target) {
-      payload.accountId = target.id;
-      return D.api(wasEdit ? "PUT" : "POST", wasEdit ? "/api/entries/" + wasEdit : "/api/entries", payload);
-    }).then(function (saved) {
-      var e = D.fromServer(saved);
-      if (wasEdit) entries = entries.map(function (x) { return x.id === e.id ? e : x; });
-      else entries.push(e);
-      renderRecent();
-      resetForm();
-      if (wasEdit) history.replaceState(null, "", "/");
-      else { $("fDate").value = keepDate; $("fMethod").value = keepMethod; counterPicker.set(keepCounter, true); updateHint(); }
-      D.setStatus(wasEdit ? "سند ویرایش شد." : "سند ثبت شد.");
-      if (stayOpen && !wasEdit) $("fAccount").focus(); else dlg.close();
-    }).catch(function (e) {
-      err.textContent = "ثبت نشد: " + ((e && e.message) || "اتصال به سرور برقرار نیست.");
-    }).then(function () { btn.disabled = btn2.disabled = false; });
-  });
-
-  // ---------- entries recorded today (by the time they were saved, not the entry date) ----------
   function isToday(ms) {
     var d = new Date(ms), n = new Date();
     return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
   }
   function timeOf(ms) { var d = new Date(ms); return toFa(D.pad(d.getHours()) + ":" + D.pad(d.getMinutes())); }
-  function renderRecent() {
+  function side(s) { return s ? D.sideLabel(s.acc, s.det) : '<span class="counter missing">؟</span>'; }
+
+  function render() {
     if (D.drawMonthChart) D.drawMonthChart(entries);
     var list = entries.filter(function (e) { return isToday(e.createdAt); })
       .sort(function (a, b) { return (b.createdAt - a.createdAt) || (b.id - a.id); });
-    $("recentBody").innerHTML = list.length ? list.map(function (e) {
-      var acc = D.accById(e.accountId);
+    $("recentBody").innerHTML = list.map(function (e) {
+      var v = D.asVoucher(e);
       var actions = String(pendingDelete) === String(e.id)
         ? '<span class="confirm">حذف شود؟ <button type="button" class="small danger" data-del-yes="' + e.id + '">بله</button><button type="button" class="small" data-del-no="1">نه</button></span>'
-        : '<button type="button" class="small" data-edit="' + e.id + '">ویرایش</button> <button type="button" class="small" data-del="' + e.id + '">حذف</button>';
-      return '<tr><td class="time">' + timeOf(e.createdAt) + '</td><td class="amt">' + toFa(e.date) + '</td><td><span class="code-cell">' + toFa(e.code) + "</span> " + esc(acc ? D.pathOf(acc) : e.account) + D.counterTag(e) + "</td>" +
-        '<td class="amt dr">' + (e.debit ? D.fmtOut(e.debit) : "") + '</td><td class="amt cr">' + (e.credit ? D.fmtOut(e.credit) : "") + "</td>" +
-        "<td>" + esc(e.method) + '</td><td class="desc">' + esc(e.desc) + "</td><td>" + actions + "</td></tr>";
-    }).join("") : "";
+        : '<a class="small" href="/voucher?edit=' + e.id + '">ویرایش</a> <button type="button" class="small" data-del="' + e.id + '">حذف</button>';
+      return '<tr><td class="amt">' + toFa(e.id) + '</td><td class="time">' + timeOf(e.createdAt) + '</td><td class="amt">' + toFa(e.date) + "</td>" +
+        "<td>" + side(v.dr) + "</td><td>" + side(v.cr) + "</td>" +
+        '<td class="amt">' + (v.both ? D.fmtOut(e.debit) + " / " + D.fmtOut(e.credit) : D.fmtOut(v.amount)) + "</td>" +
+        "<td>" + D.esc(e.method) + '</td><td class="desc">' + D.esc(e.desc) + "</td><td>" + actions + "</td></tr>";
+    }).join("");
     $("recentBody").closest(".table-scroll").hidden = !list.length;
     $("recentEmpty").hidden = !!list.length;
   }
+
   $("recentBody").addEventListener("click", function (ev) {
     var t = ev.target.closest("button"); if (!t) return;
-    if (t.dataset.edit) startEdit(t.dataset.edit);
-    else if (t.dataset.del) { pendingDelete = t.dataset.del; renderRecent(); }
-    else if (t.dataset.delNo) { pendingDelete = null; renderRecent(); }
+    if (t.dataset.del) { pendingDelete = t.dataset.del; render(); }
+    else if (t.dataset.delNo) { pendingDelete = null; render(); }
     else if (t.dataset.delYes) {
       var id = t.dataset.delYes; pendingDelete = null;
       D.api("DELETE", "/api/entries/" + id).then(function () {
         entries = entries.filter(function (e) { return String(e.id) !== String(id); });
-        if (String(editingId) === String(id)) resetForm();
-        renderRecent(); D.setStatus("سند حذف شد.");
-      }).catch(function (e) { D.setStatus("حذف نشد: " + e.message, true); renderRecent(); });
+        render(); D.setStatus("سند حذف شد.");
+      }).catch(function (e) { D.setStatus("حذف نشد: " + e.message, true); render(); });
     }
   });
 
-  D.start(function (first) {
-    if (first) resetForm();
-    load().then(function () {
-      var m = location.search.match(/[?&]edit=(\d+)/);
-      if (first && m) startEdit(m[1]);
-    });
-  });
+  // old links (/?edit=12) now open the voucher page
+  var m = location.search.match(/[?&]edit=(\d+)/);
+  if (m) { location.replace("/voucher?edit=" + m[1]); return; }
+  D.start(function () { load(); });
 })();

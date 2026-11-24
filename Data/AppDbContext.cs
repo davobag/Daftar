@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
     public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Detail> Details => Set<Detail>();
     public DbSet<AppUser> Users => Set<AppUser>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -20,6 +21,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasOne(x => x.Account).WithMany(a => a.Entries).HasForeignKey(x => x.AccountId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.CounterAccountId).HasColumnName("counter_account_id");
             e.HasOne(x => x.CounterAccount).WithMany().HasForeignKey(x => x.CounterAccountId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.DetailId).HasColumnName("detail_id");
+            e.HasOne(x => x.Detail).WithMany().HasForeignKey(x => x.DetailId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.CounterDetailId).HasColumnName("counter_detail_id");
+            e.HasOne(x => x.CounterDetail).WithMany().HasForeignKey(x => x.CounterDetailId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.Debit).HasColumnName("debit");
             e.Property(x => x.Credit).HasColumnName("credit");
             e.Property(x => x.PaymentMethod).HasColumnName("payment_method").HasMaxLength(50).IsRequired();
@@ -43,6 +48,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // نام فقط زیر یک والد یکتاست (مثلاً «کاغذ» هم زیر باسکول و هم زیر خانه مجاز است)؛ در کد بررسی می‌شود
             e.HasIndex(x => new { x.ParentId, x.Name });
             e.ToTable(t => t.HasCheckConstraint("ck_account_code", "code > 0"));
+        });
+
+        b.Entity<Detail>(e =>
+        {
+            e.ToTable("details");
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Code).HasColumnName("code");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.HasIndex(x => x.Code).IsUnique();
+            e.HasIndex(x => x.Name).IsUnique();
+            e.ToTable(t => t.HasCheckConstraint("ck_detail_code", "code > 0"));
         });
 
         b.Entity<AppUser>(e =>
